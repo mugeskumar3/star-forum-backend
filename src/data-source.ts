@@ -1,6 +1,5 @@
-import { User } from "./entity/User"
 import { DataSource } from "typeorm";
-import { emploe } from "./entity/users";
+import { Admin } from "./entity/Admin";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -9,6 +8,6 @@ export const AppDataSource = new DataSource({
     url: process.env.MONGO_URI || '',
     synchronize: true,
     logging: true,
-    entities: [User, emploe], // Explicit imports
+    entities: [Admin],
     // useUnifiedTopology: true,
 });

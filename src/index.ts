@@ -2,11 +2,33 @@ import "reflect-metadata";
 import express from "express";
 import { useExpressServer } from "routing-controllers";
 import { AppDataSource } from "./data-source";
+import { Admin } from "./entity/Admin";
+import { ObjectId } from "mongodb";
 import fileUpload from 'express-fileupload';
 
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     console.log("✅ Database connected");
+
+    // Default Admin Creation
+    const adminRepo = AppDataSource.getMongoRepository(Admin);
+    const count = await adminRepo.count({ where: { isDelete: 0 } });
+
+    if (count === 0) {
+      const defaultAdmin = new Admin();
+      defaultAdmin.name = "Star Admin";
+      defaultAdmin.email = "admin@starforum.in";
+      defaultAdmin.companyName = "Star Forum";
+      defaultAdmin.phoneNumber = "9988776655";
+      defaultAdmin.pin = "2026";
+      defaultAdmin.roleId = new ObjectId("65a1234567890abcdef12345");
+      defaultAdmin.isActive = 1;
+      defaultAdmin.isDelete = 0;
+
+      await adminRepo.save(defaultAdmin);
+      console.log("🌟 Default Admin created: admin@starforum.in / 2026");
+    }
+
     const app = express();
     // Add body parsing middleware with limits to prevent form errors
     app.use(express.json({ limit: '10mb' }));
