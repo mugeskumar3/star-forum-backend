@@ -1,7 +1,7 @@
 import { Entity, ObjectIdColumn, ObjectId, Column, CreateDateColumn, UpdateDateColumn } from "typeorm"
 
 @Entity()
-export class Admin {
+export class AdminUser {
 
     @ObjectIdColumn()
     id: ObjectId
@@ -21,8 +21,8 @@ export class Admin {
     @Column()
     pin: string
 
-    @Column()
-    role: string
+    @ObjectIdColumn()
+    roleId: ObjectId
 
     @Column({ default: 1 })
     isActive: number

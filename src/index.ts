@@ -12,8 +12,7 @@ AppDataSource.initialize()
 
     // Default Admin Creation
     const adminRepo = AppDataSource.getMongoRepository(Admin);
-    const count = await adminRepo.count({ where: { isDelete: 0 } });
-
+    const count = await adminRepo.countDocuments({ isDelete: 0 });
     if (count === 0) {
       const defaultAdmin = new Admin();
       defaultAdmin.name = "Star Admin";
@@ -21,7 +20,7 @@ AppDataSource.initialize()
       defaultAdmin.companyName = "Star Forum";
       defaultAdmin.phoneNumber = "9988776655";
       defaultAdmin.pin = "2026";
-      defaultAdmin.roleId = new ObjectId("65a1234567890abcdef12345");
+      defaultAdmin.role = "Admin";
       defaultAdmin.isActive = 1;
       defaultAdmin.isDelete = 0;
 
@@ -42,8 +41,20 @@ AppDataSource.initialize()
     // Body parsers
     app.use(express.json({ limit: '1000mb' }));
     app.use(express.urlencoded({ limit: '1000mb', extended: false }));
+    // Admin Routes
     useExpressServer(app, {
-      controllers: [__dirname + "/controllers/**/*.ts"],
+      routePrefix: "/api/admin",
+      controllers: [__dirname + "/controllers/admin/**/*.ts"],
+      middlewares: [__dirname + "/middlewares/**/*.ts"],
+      defaultErrorHandler: false,
+      validation: true,
+      classTransformer: true,
+    });
+
+    // Mobile Routes
+    useExpressServer(app, {
+      routePrefix: "/api/mobile",
+      controllers: [__dirname + "/controllers/mobile/**/*.ts"],
       middlewares: [__dirname + "/middlewares/**/*.ts"],
       defaultErrorHandler: false,
       validation: true,
