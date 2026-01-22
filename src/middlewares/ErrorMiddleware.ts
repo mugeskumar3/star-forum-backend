@@ -1,35 +1,40 @@
-import { Middleware, ExpressErrorMiddlewareInterface } from "routing-controllers";
-import { Request, Response, NextFunction } from "express";
+import {
+  ExpressErrorMiddlewareInterface,
+  Middleware,
+  BadRequestError
+} from "routing-controllers";
 
 @Middleware({ type: "after" })
-export class ErrorHandlerMiddleware implements ExpressErrorMiddlewareInterface {
-    error(error: any, request: Request, response: Response, next: NextFunction) {
-        console.error("Global error handler:", error);
+export class ErrorLogger implements ExpressErrorMiddlewareInterface {
+  error(error: unknown, req: any, res: any) {
 
-        if (error.code === "LIMIT_FILE_SIZE") {
-            return response.status(413).json({
-                success: false,
-                message: "File too large"
-            });
-        }
+    if (error instanceof BadRequestError) {
+      const err: any = error;
 
-        if (error.message?.includes("Unexpected end of form")) {
-            return response.status(400).json({
-                success: false,
-                message: "Incomplete file upload. Please check your file and try again."
-            });
-        }
+      if (Array.isArray(err.errors)) {
+        const formattedErrors = err.errors.map((e: any) => ({
+          field: e.property,
+          value: e.value,
+          message: e.constraints
+            ? Object.values(e.constraints)[0]
+            : "Invalid value"
+        }));
 
-        const status = error.httpCode || error.statusCode || 500;
-        const responseData: any = {
-            success: false,
-            message: error.message || "Internal server error"
-        };
-
-        if (error.errors) {
-            responseData.errors = error.errors;
-        }
-
-        response.status(status).json(responseData);
+        return res.status(400).json({
+          status: 400,
+          message: "Validation failed",
+          errors: formattedErrors
+        });
+      }
     }
+
+    console.error("Unhandled error:", error);
+
+    const httpCode = (error as any)?.httpCode || 500;
+
+    return res.status(httpCode).json({
+      status: httpCode,
+      message: (error as any)?.message || "Internal Server Error"
+    });
+  }
 }
