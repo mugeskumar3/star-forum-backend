@@ -1,5 +1,5 @@
-import { Entity, ObjectIdColumn, ObjectId, Column, CreateDateColumn, UpdateDateColumn } from "typeorm"
-
+import { Entity, ObjectIdColumn,Column, CreateDateColumn, UpdateDateColumn } from "typeorm"
+import { ObjectId } from "mongodb";
 @Entity()
 export class AdminUser {
 
@@ -21,9 +21,15 @@ export class AdminUser {
     @Column()
     pin: string
 
-    @ObjectIdColumn()
+    @Column()
     roleId: ObjectId
 
+    @Column()
+    createdBy: ObjectId;
+
+    @Column()
+    updatedBy: ObjectId;
+    
     @Column({ default: 1 })
     isActive: number
 
