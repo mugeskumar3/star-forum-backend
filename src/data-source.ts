@@ -8,6 +8,6 @@ export const AppDataSource = new DataSource({
     url: process.env.MONGO_URI || '',
     synchronize: true,
     logging: true,
- entities: ["src/entity/**/*.ts"],
+ entities: ["src/entity/**/*.ts","dist/entity/**/*.js"],
  // useUnifiedTopology: true,
 });
