@@ -4,11 +4,15 @@ import { AppDataSource } from "../../data-source";
 import { Admin } from "../../entity/Admin";
 import { AdminUser } from "../../entity/AdminUser";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import response from "../../utils/response";
 import { JWT_EXPIRES_IN, JWT_SECRET } from "../../config/jwt";
 
+import jwt, { SignOptions } from "jsonwebtoken";
+
+const options: SignOptions = {
+    expiresIn: JWT_EXPIRES_IN as any
+};
 @JsonController("/auth")
 export class LoginController {
     private adminRepo = AppDataSource.getMongoRepository(Admin);
@@ -70,11 +74,8 @@ export class LoginController {
                         userType: "ADMIN_USER"
                     };
 
-            const token = jwt.sign(
-                payload,
-                JWT_SECRET,
-                { expiresIn: JWT_EXPIRES_IN }
-            );
+
+            const token = jwt.sign(payload, JWT_SECRET, options);
 
             return response(res, StatusCodes.OK, "Login successful", {
                 token,

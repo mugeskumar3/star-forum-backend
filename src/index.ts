@@ -1,7 +1,4 @@
 import "reflect-metadata";
-import dotenv from "dotenv";
-dotenv.config();
-
 import express from "express";
 import { useExpressServer } from "routing-controllers";
 import { AppDataSource } from "./data-source";
