@@ -75,8 +75,16 @@ export class CreateMemberDto {
 
     // BASIC INFORMATION
     @IsOptional()
-    @IsString()
-    profileImage?: string;
+    profileImage?: {
+        imageName?: string;
+        imagePath?: string;
+        originalName?: string;
+    } = {
+            imageName: "",
+            imagePath: "",
+            originalName: ""
+        };
+
 
     @IsString()
     @IsNotEmpty()
@@ -195,7 +203,11 @@ export class UpdateMemberDto {
 
     @IsOptional()
     @IsString()
-    profileImage?: string;
+    profileImage?: {
+        imageName: string,
+        imagePath: String,
+        originalName: string
+    };
 
     @IsOptional()
     @IsString()

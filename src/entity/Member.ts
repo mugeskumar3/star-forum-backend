@@ -12,9 +12,13 @@ export class Member {
     @ObjectIdColumn()
     id: ObjectId;
 
-    // BASIC INFORMATION
-    @Column()
-    profileImage: string;
+    @Column("simple-json", { nullable: true })
+    profileImage?: {
+        imageName?: string;
+        imagePath?: string;
+        originalName?: string;
+    };
+
 
     @Column()
     fullName: string;
