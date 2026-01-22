@@ -7,7 +7,7 @@ import { BusinessCategory } from "./entity/BusinessCategory";
 import { Badge } from "./entity/Badge ";
 import { Region } from "./entity/Region";
 import { Zone } from "./entity/Zone";
-dotenv.config();
+dotenv.config({ quiet: true });
 
 export const AppDataSource = new DataSource({
     type: "mongodb",
