@@ -5,12 +5,15 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "outDir": "./dist",
+    "rootDir": "./src",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
-
-    // ✅ Add these two lines:
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
-  }
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.json"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
 }

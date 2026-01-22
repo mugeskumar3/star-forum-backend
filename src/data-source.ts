@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { AdminUser } from "./entity/AdminUser";
 import { Award } from "./entity/Award";
 import { BusinessCategory } from "./entity/BusinessCategory";
-import { Badge } from "./entity/Badge ";
+import { Badge } from "./entity/Badge";
 import { Region } from "./entity/Region";
 import { Zone } from "./entity/Zone";
 dotenv.config({ quiet: true });
