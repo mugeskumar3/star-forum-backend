@@ -8,62 +8,63 @@ import {
     Body,
     Res,
     HttpCode,
-    QueryParams
+    QueryParams,
+    UseBefore,
+    Req
 } from "routing-controllers";
-import { Response } from "express";
+import { Request, Response } from "express";
+import { ObjectId } from "mongodb";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { StatusCodes } from "http-status-codes";
+
 import { AppDataSource } from "../../data-source";
 import { AdminUser } from "../../entity/AdminUser";
-import { ObjectId } from "mongodb";
+import { AuthMiddleware } from "../../middlewares/AuthMiddleware";
 import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
 import pagination from "../../utils/pagination";
-import { StatusCodes } from "http-status-codes";
+import { CreateAdminUserDto, UpdateAdminUserDto } from "../../dto/admin/AdminUser.dto";
+import { AuthPayload } from "../../middlewares/AuthMiddleware";
 
+interface RequestWithUser extends Request {
+    user: AuthPayload;
+}
+
+@UseBefore(AuthMiddleware)
 @JsonController("/adminUser")
 export class AdminUserController {
     private adminUserRepository = AppDataSource.getMongoRepository(AdminUser);
 
     @Post("/")
-    @HttpCode(201)
-    async createAdminUser(@Body() adminUserData: any, @Res() res: Response) {
+    async createAdminUser(
+        @Body() body: CreateAdminUserDto,
+        @Req() req: RequestWithUser,
+        @Res() res: Response
+    ) {
         try {
-            const requiredFields = [
-                "name",
-                "email",
-                "companyName",
-                "phoneNumber",
-                "pin",
-                "roleId"
-            ];
-
-            for (const field of requiredFields) {
-                if (!adminUserData[field]) {
-                    return response(res, StatusCodes.BAD_REQUEST, `${field} is required`);
-                }
-            }
-
             const adminUser = new AdminUser();
-            adminUser.name = adminUserData.name;
-            adminUser.email = adminUserData.email;
-            adminUser.companyName = adminUserData.companyName;
-            adminUser.phoneNumber = adminUserData.phoneNumber;
-            adminUser.pin = adminUserData.pin;
-            adminUser.roleId = new ObjectId(adminUserData.roleId);
-            adminUser.isActive = adminUserData.isActive ?? 1;
+
+            adminUser.name = body.name;
+            adminUser.email = body.email;
+            adminUser.companyName = body.companyName;
+            adminUser.phoneNumber = body.phoneNumber;
+            adminUser.pin = await bcrypt.hash(body.pin, 10);
+            adminUser.roleId = new ObjectId(body.roleId);
+            adminUser.createdBy = new ObjectId(req.user.userId);
+            adminUser.updatedBy = new ObjectId(req.user.userId);
+            adminUser.isActive = body.isActive ?? 1;
             adminUser.isDelete = 0;
 
             const savedAdminUser = await this.adminUserRepository.save(adminUser);
 
-            return response(
-                res,
-                StatusCodes.CREATED,
-                "AdminUser created successfully",
-                savedAdminUser
-            );
-        } catch (error: any) {
+            return response(res, StatusCodes.CREATED, "AdminUser created successfully", savedAdminUser);
+        } catch (error) {
             return handleErrorResponse(error, res);
         }
     }
+
+
 
     @Get("/")
     async getAllAdminUsers(@QueryParams() query: any, @Res() res: Response) {
@@ -122,10 +123,10 @@ export class AdminUserController {
     @Get("/:id")
     async getAdminUserById(@Param("id") id: string, @Res() res: Response) {
         try {
-            const adminUser = await this.adminUserRepository.findOne({
-                _id: new ObjectId(id),
+            const adminUser = await this.adminUserRepository.findOneBy({
+                id: new ObjectId(id),
                 isDelete: 0
-            } as any);
+            });
 
             if (!adminUser) {
                 return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
@@ -145,33 +146,33 @@ export class AdminUserController {
     @Put("/:id")
     async updateAdminUser(
         @Param("id") id: string,
-        @Body() adminUserData: any,
+        @Body() body: UpdateAdminUserDto,
+        @Req() req: RequestWithUser,
         @Res() res: Response
     ) {
         try {
-            const adminUser = await this.adminUserRepository.findOne({
-                _id: new ObjectId(id),
+            const adminUser = await this.adminUserRepository.findOneBy({
+                id: new ObjectId(id),
                 isDelete: 0
-            } as any);
+            });
 
             if (!adminUser) {
                 return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
             }
 
-            if (adminUserData.name) adminUser.name = adminUserData.name;
-            if (adminUserData.email) adminUser.email = adminUserData.email;
-            if (adminUserData.companyName)
-                adminUser.companyName = adminUserData.companyName;
-            if (adminUserData.phoneNumber)
-                adminUser.phoneNumber = adminUserData.phoneNumber;
-            if (adminUserData.pin) adminUser.pin = adminUserData.pin;
-            if (adminUserData.roleId)
-                adminUser.roleId = new ObjectId(adminUserData.roleId);
-            if (adminUserData.isActive !== undefined)
-                adminUser.isActive = adminUserData.isActive;
+            if (body.name) adminUser.name = body.name;
+            if (body.email) adminUser.email = body.email;
+            if (body.companyName) adminUser.companyName = body.companyName;
+            if (body.phoneNumber) adminUser.phoneNumber = body.phoneNumber;
 
-            const updatedAdminUser =
-                await this.adminUserRepository.save(adminUser);
+            if (body.pin) {
+                adminUser.pin = await bcrypt.hash(body.pin, 10);
+            }
+
+            if (body.roleId) adminUser.roleId = new ObjectId(body.roleId);
+            if (body.isActive !== undefined) adminUser.isActive = body.isActive;
+            adminUser.updatedBy = new ObjectId(req.user.userId);
+            const updatedAdminUser = await this.adminUserRepository.save(adminUser);
 
             return response(
                 res,
@@ -187,10 +188,10 @@ export class AdminUserController {
     @Delete("/:id")
     async deleteAdminUser(@Param("id") id: string, @Res() res: Response) {
         try {
-            const adminUser = await this.adminUserRepository.findOne({
-                _id: new ObjectId(id),
+            const adminUser = await this.adminUserRepository.findOneBy({
+                id: new ObjectId(id),
                 isDelete: 0
-            } as any);
+            });
 
             if (!adminUser) {
                 return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
@@ -208,10 +209,10 @@ export class AdminUserController {
     @Put("/:id/toggle-active")
     async toggleActiveStatus(@Param("id") id: string, @Res() res: Response) {
         try {
-            const adminUser = await this.adminUserRepository.findOne({
-                _id: new ObjectId(id),
+            const adminUser = await this.adminUserRepository.findOneBy({
+                id: new ObjectId(id),
                 isDelete: 0
-            } as any);
+            });
 
             if (!adminUser) {
                 return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
@@ -242,7 +243,7 @@ export class AdminUserController {
             const adminUsers = await this.adminUserRepository.find({
                 roleId: new ObjectId(roleId),
                 isDelete: 0
-            } as any);
+            });
 
             return response(
                 res,
