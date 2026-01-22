@@ -1,4 +1,4 @@
-import { Body, JsonController, Param, Patch, Post, Req, Res, UseBefore } from "routing-controllers";
+import { Body, Delete, Get, JsonController, Param, Patch, Post, Req, Res, UseBefore } from "routing-controllers";
 import { CreateMemberDto, UpdateMemberDto } from "../../dto/admin/Member.dto";
 import { AuthMiddleware, AuthPayload } from "../../middlewares/AuthMiddleware";
 import { AppDataSource } from "../../data-source";
@@ -6,8 +6,9 @@ import { Member } from "../../entity/Member";
 import { StatusCodes } from "http-status-codes";
 import response from "../../utils/response";
 import { ObjectId } from "mongodb";
-import { handleErrorResponse } from "../../utils";
+import { ApiError, handleErrorResponse, pagination } from "../../utils";
 interface RequestWithUser extends Request {
+    query: any;
     files(files: any): unknown;
     user: AuthPayload;
 }
@@ -47,7 +48,7 @@ export class MemberController {
             // -------------------------
             const memberData = new Member();
 
-            memberData.profileImage = body.profileImage || "";
+            memberData.profileImage = body.profileImage || undefined;
             memberData.fullName = body.fullName;
             memberData.mobileNumber = body.mobileNumber;
             memberData.email = body.email;
@@ -62,6 +63,8 @@ export class MemberController {
             memberData.position = body.position;
             memberData.dateOfBirth = body.dateOfBirth;
             memberData.anniversary = body.anniversary;
+            memberData.isActive = 1;
+            memberData.isDelete = 0;
 
             // -------------------------
             // OFFICE ADDRESS
@@ -250,6 +253,154 @@ export class MemberController {
             return handleErrorResponse(error, res);
         }
     }
+    @Get("/list")
+    async listMembers(
+        @Req() req: RequestWithUser,
+        @Res() res: Response
+    ) {
+        try {
+            const page = Math.max(Number(req.query.page) || 0, 0);
+            const limit = Math.max(Number(req.query.limit) || 10, 1);
+            const search = req.query.search?.toString();
+            const region = req.query.region?.toString();
+            const chapter = req.query.chapter?.toString();
 
+            // -----------------------------------------------------
+            // MATCH STAGE
+            // -----------------------------------------------------
+            const match: any = { isDelete: 0 };
 
+            if (search) {
+                match.$or = [
+                    { fullName: { $regex: search, $options: "i" } },
+                    { email: { $regex: search, $options: "i" } },
+                    { mobileNumber: { $regex: search, $options: "i" } }
+                ];
+            }
+
+            if (region) match.region = new ObjectId(region);
+            if (chapter) match.chapter = new ObjectId(chapter);
+
+            // -----------------------------------------------------
+            // AGGREGATION PIPELINE
+            // -----------------------------------------------------
+            const pipeline = [
+                { $match: match },
+                { $sort: { createdAt: -1 } },
+
+                {
+                    $facet: {
+                        data: [
+                            { $skip: page * limit },
+                            { $limit: limit }
+                        ],
+                        meta: [
+                            { $count: "total" }
+                        ]
+                    }
+                }
+            ];
+
+            const result = await this.memberRepository.aggregate(pipeline).toArray();
+
+            const data = result[0]?.data || [];
+            const total = result[0]?.meta[0]?.total || 0;
+
+            return pagination(total, data, limit, page, res);
+
+        } catch (error) {
+            return handleErrorResponse(error, res);
+        }
+    }
+    @Get("/details/:id")
+    async memberDetails(
+        @Param("id") id: string,
+        @Req() req: RequestWithUser,
+        @Res() res: Response
+    ) {
+        try {
+            if (!ObjectId.isValid(id)) {
+                throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid Member Id')
+            }
+
+            const pipeline = [
+                {
+                    $match: {
+                        _id: new ObjectId(id),
+                        isDelete: 0
+                    }
+                },
+
+                // ----------------------------
+                // OPTIONAL LOOKUPS (future)
+                // ----------------------------
+                // {
+                //   $lookup: {
+                //     from: "regions",
+                //     localField: "region",
+                //     foreignField: "_id",
+                //     as: "regionDetails"
+                //   }
+                // },
+                // { $unwind: { path: "$regionDetails", preserveNullAndEmptyArrays: true } },
+
+                {
+                    $project: {
+                        isDelete: 0
+                    }
+                }
+            ];
+
+            const result = await this.memberRepository
+                .aggregate(pipeline)
+                .toArray();
+
+            if (!result.length) {
+                return response(res, StatusCodes.BAD_REQUEST, 'Member not found!!');
+            }
+
+            return response(res, StatusCodes.OK, 'Member got successfully', result[0]);
+
+        } catch (error) {
+            return handleErrorResponse(error, res);
+        }
+    }
+    @Delete("/delete/:id")
+    async deleteMember(
+        @Param("id") id: string,
+        @Req() req: RequestWithUser,
+        @Res() res: Response
+    ) {
+        try {
+            if (!ObjectId.isValid(id)) {
+                throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid Member Id')
+
+            }
+
+            const result = await this.memberRepository.findOne({
+                where: {
+                    _id: new ObjectId(id),
+                    isDelete: 0
+                }
+            });
+
+            if (!result) {
+                return response(res, StatusCodes.OK, 'Member got successfully', result[0]);
+            }
+
+            await this.memberRepository.update(
+                { id: new ObjectId(id) },
+                {
+                    isDelete: 1,
+                    updatedAt: new Date(),
+                    updatedBy: req.user?.userId
+                }
+            );
+
+            return response(res, StatusCodes.OK, 'Member deleted successfully');
+
+        } catch (error) {
+            return handleErrorResponse(error, res);
+        }
+    }
 }

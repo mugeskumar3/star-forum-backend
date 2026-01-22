@@ -40,6 +40,7 @@ export class ZoneController {
     @Res() res: Response
   ) {
     try {
+      console.log("BODY:", body);
       const exists = await this.zoneRepository.findOneBy({
         name: body.name,
         isDelete: 0
@@ -212,4 +213,38 @@ export class ZoneController {
       return handleErrorResponse(error, res);
     }
   }
+
+  @Get("/by-state/:state")
+  async getZonesByState(
+    @Param("state") state: string,
+    @Res() res: Response
+  ) {
+    try {
+      const zones = await this.zoneRepository.aggregate([
+        {
+          $match: {
+            state,
+            isDelete: 0,
+            isActive: 1
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1
+          }
+        }
+      ]).toArray();
+
+      return response(
+        res,
+        StatusCodes.OK,
+        "Zones fetched successfully",
+        zones
+      );
+    } catch (error) {
+      return handleErrorResponse(error, res);
+    }
+  }
+  
 }
