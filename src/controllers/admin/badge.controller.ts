@@ -21,8 +21,8 @@ import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
 import pagination from "../../utils/pagination";
 import { AuthPayload } from "../../middlewares/AuthMiddleware";
-import { Badge } from "../../entity/Badge ";
-import { CreateBadgeDto, UpdateBadgeDto } from "../../dto/admin/Badge.dto";
+import { Badge } from "../../entity/Badge";
+import { CreateBadgeDto, UpdateBadgeDto } from "../../dto/admin/badge.dto";
 
 interface RequestWithUser extends Request {
   user: AuthPayload;
