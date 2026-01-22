@@ -4,13 +4,18 @@
     "target": "es2021",
     "module": "commonjs",
     "moduleResolution": "node",
-    "outDir": "./dist",
+
+    "rootDir": "src",         
+    "outDir": "dist",    
+
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
 
-    // ✅ Add these two lines:
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
-  }
+    "allowSyntheticDefaultImports": true,
+
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"]
 }
