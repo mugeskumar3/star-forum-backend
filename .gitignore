@@ -6,3 +6,4 @@ tmp/
 temp/
 .env
 uploads/
+package-lock.json
