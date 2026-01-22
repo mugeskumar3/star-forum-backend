@@ -67,36 +67,78 @@ export class AdminUserController {
 
 
     @Get("/")
-    async getAllAdminUsers(@QueryParams() query: any, @Res() res: Response) {
+    async getAllAdminUsers(
+        @QueryParams() query: any,
+        @Res() res: Response
+    ) {
         try {
             const page = Number(query.page ?? 0);
-            const limit = Number(query.limit ?? 10);
-            const skip = page * limit;
+            const limit = Number(query.limit ?? 0);
+            const match: any = {
+                isDelete: 0
+            };
 
-            const filter = { isDelete: 0 };
+            if (query.status !== undefined) {
+                match.isActive = Number(query.status);
+            }
+            const operation: any[] = [];
+            operation.push({ $match: match });
+            operation.push({
+                $lookup: {
+                    from: "roles",
+                    let: { roleId: "$roleId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$_id", "$$roleId"] }
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                name: 1
+                            }
+                        }
+                    ],
+                    as: "role"
+                }
+            });
+            operation.push({
+                $unwind: {
+                    path: "$role",
+                    preserveNullAndEmptyArrays: true
+                }
+            });
 
-            if (query.page !== undefined && query.limit !== undefined) {
-                const totalCount =
-                    await this.adminUserRepository.countDocuments(filter);
-
-                const adminUsers = await this.adminUserRepository.find({
-                    skip,
-                    limit,
-                    ...filter
-                });
-
-                return pagination(totalCount, adminUsers, limit, page, res);
+            if (limit > 0) {
+                operation.push(
+                    { $skip: page * limit },
+                    { $limit: limit }
+                );
             }
 
-            const adminUsers = await this.adminUserRepository.find(filter);
+            operation.push({
+                $project: {
+                    name: 1,
+                    email: 1,
+                    companyName: 1,
+                    phoneNumber: 1,
+                    isActive: 1,
+                    roleId: 1,
+                    roleName: "$role.name",
+                    createdAt: 1
+                }
+            });
 
-            return response(
-                res,
-                StatusCodes.OK,
-                "AdminUsers fetched successfully",
-                adminUsers
-            );
-        } catch (error: any) {
+            const result = await this.adminUserRepository
+                .aggregate(operation)
+                .toArray();
+
+            const Count =
+                await this.adminUserRepository.countDocuments(match);
+
+            return pagination(Count, result, limit, page, res);
+        } catch (error) {
             return handleErrorResponse(error, res);
         }
     }
@@ -124,7 +166,7 @@ export class AdminUserController {
     async getAdminUserById(@Param("id") id: string, @Res() res: Response) {
         try {
             const adminUser = await this.adminUserRepository.findOneBy({
-                id: new ObjectId(id),
+                _id: new ObjectId(id),
                 isDelete: 0
             });
 
@@ -152,7 +194,7 @@ export class AdminUserController {
     ) {
         try {
             const adminUser = await this.adminUserRepository.findOneBy({
-                id: new ObjectId(id),
+                _id: new ObjectId(id),
                 isDelete: 0
             });
 
@@ -189,7 +231,7 @@ export class AdminUserController {
     async deleteAdminUser(@Param("id") id: string, @Res() res: Response) {
         try {
             const adminUser = await this.adminUserRepository.findOneBy({
-                id: new ObjectId(id),
+                _id: new ObjectId(id),
                 isDelete: 0
             });
 
@@ -210,7 +252,7 @@ export class AdminUserController {
     async toggleActiveStatus(@Param("id") id: string, @Res() res: Response) {
         try {
             const adminUser = await this.adminUserRepository.findOneBy({
-                id: new ObjectId(id),
+                _id: new ObjectId(id),
                 isDelete: 0
             });
 

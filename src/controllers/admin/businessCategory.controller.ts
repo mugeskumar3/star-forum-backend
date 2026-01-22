@@ -70,29 +70,47 @@ export class BusinessCategoryController {
   }
 
   @Get("/")
-  async getAllBusinessCategories(@QueryParams() query: any, @Res() res: Response) {
+  async getAllBusinessCategories(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
     try {
       const page = Number(query.page ?? 0);
-      const limit = Number(query.limit ?? 10);
-      const skip = page * limit;
-      const filter = { isDelete: 0 };
+      const limit = Number(query.limit ?? 0);
 
-      if (query.page !== undefined && query.limit !== undefined) {
-        const totalCount = await this.businessCategoryRepository.countDocuments(filter);
-        const businessCategories = await this.businessCategoryRepository.find({
-          skip,
-          limit,
-          ...filter
-        });
-        return pagination(totalCount, businessCategories, limit, page, res);
+      const match = { isDelete: 0 };
+
+      const operation: any[] = [];
+
+      operation.push({ $match: match });
+
+      if (limit > 0) {
+        operation.push(
+          { $skip: page * limit },
+          { $limit: limit }
+        );
       }
 
-      const businessCategories = await this.businessCategoryRepository.find(filter);
-      return response(res, StatusCodes.OK, "Business categories fetched successfully", businessCategories);
+      const businessCategories =
+        await this.businessCategoryRepository
+          .aggregate(operation)
+          .toArray();
+
+      const totalCount =
+        await this.businessCategoryRepository.countDocuments(match);
+
+      return pagination(
+        totalCount,
+        businessCategories,
+        limit,
+        page,
+        res
+      );
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
+
 
   @Get("/active")
   async getActiveBusinessCategories(@Res() res: Response) {
@@ -111,7 +129,7 @@ export class BusinessCategoryController {
   async getBusinessCategoryById(@Param("id") id: string, @Res() res: Response) {
     try {
       const businessCategory = await this.businessCategoryRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -134,7 +152,7 @@ export class BusinessCategoryController {
   ) {
     try {
       const businessCategory = await this.businessCategoryRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -158,7 +176,7 @@ export class BusinessCategoryController {
   async deleteBusinessCategory(@Param("id") id: string, @Res() res: Response) {
     try {
       const businessCategory = await this.businessCategoryRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -179,7 +197,7 @@ export class BusinessCategoryController {
   async toggleActive(@Param("id") id: string, @Res() res: Response) {
     try {
       const businessCategory = await this.businessCategoryRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 

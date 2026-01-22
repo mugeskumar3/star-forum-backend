@@ -77,44 +77,49 @@ export class RegionController {
   async getAllRegions(@QueryParams() query: any, @Res() res: Response) {
     try {
       const page = Number(query.page ?? 0);
-      const limit = Number(query.limit ?? 10);
-      const skip = page * limit;
+      const limit = Number(query.limit ?? 0);
 
-      const filter: any = { isDelete: 0 };
+      const match: any = { isDelete: 0 };
 
       if (query.zoneId) {
-        filter.zoneId = new ObjectId(query.zoneId);
+        match.zoneId = new ObjectId(query.zoneId);
       }
 
       if (query.isActive !== undefined) {
-        filter.isActive = Number(query.isActive);
+        match.isActive = Number(query.isActive);
       }
 
-      if (query.page !== undefined && query.limit !== undefined) {
-        const totalCount =
-          await this.regionRepository.countDocuments(filter);
+      const operation: any[] = [];
 
-        const regions = await this.regionRepository.find({
-          skip,
-          limit,
-          ...filter
-        });
+      operation.push({ $match: match });
 
-        return pagination(totalCount, regions, limit, page, res);
+      if (limit > 0) {
+        operation.push(
+          { $skip: page * limit },
+          { $limit: limit }
+        );
       }
 
-      const regions = await this.regionRepository.find(filter);
-      return response(res, StatusCodes.OK, "Regions fetched successfully", regions);
+      const regions = await this.regionRepository
+        .aggregate(operation)
+        .toArray();
+
+      const totalCount =
+        await this.regionRepository.countDocuments(match);
+
+      return pagination(totalCount, regions, limit, page, res);
+
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
 
+
   @Get("/:id")
   async getRegionById(@Param("id") id: string, @Res() res: Response) {
     try {
       const region = await this.regionRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -137,7 +142,7 @@ export class RegionController {
   ) {
     try {
       const region = await this.regionRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -179,7 +184,7 @@ export class RegionController {
   async deleteRegion(@Param("id") id: string, @Res() res: Response) {
     try {
       const region = await this.regionRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -200,7 +205,7 @@ export class RegionController {
   async toggleActive(@Param("id") id: string, @Res() res: Response) {
     try {
       const region = await this.regionRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 

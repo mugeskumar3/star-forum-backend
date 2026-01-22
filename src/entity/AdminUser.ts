@@ -1,6 +1,6 @@
 import { Entity, ObjectIdColumn,Column, CreateDateColumn, UpdateDateColumn } from "typeorm"
 import { ObjectId } from "mongodb";
-@Entity()
+@Entity("adminusers")
 export class AdminUser {
 
     @ObjectIdColumn()

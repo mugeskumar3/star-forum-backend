@@ -70,29 +70,38 @@ export class AwardController {
   }
 
   @Get("/")
-  async getAllAwards(@QueryParams() query: any, @Res() res: Response) {
-    try {
-      const page = Number(query.page ?? 0);
-      const limit = Number(query.limit ?? 10);
-      const skip = page * limit;
-      const filter = { isDelete: 0 };
+async getAllAwards(@QueryParams() query: any, @Res() res: Response) {
+  try {
+    const page = Number(query.page ?? 0);
+    const limit = Number(query.limit ?? 0);
 
-      if (query.page !== undefined && query.limit !== undefined) {
-        const totalCount = await this.awardRepository.countDocuments(filter);
-        const awards = await this.awardRepository.find({
-          skip,
-          limit,
-          ...filter
-        });
-        return pagination(totalCount, awards, limit, page, res);
-      }
+    const match = { isDelete: 0 };
 
-      const awards = await this.awardRepository.find(filter);
-      return response(res, StatusCodes.OK, "Awards fetched successfully", awards);
-    } catch (error) {
-      return handleErrorResponse(error, res);
+    const operation: any[] = [];
+
+    operation.push({ $match: match });
+
+    if (limit > 0) {
+      operation.push(
+        { $skip: page * limit },
+        { $limit: limit }
+      );
     }
+
+    const awards = await this.awardRepository
+      .aggregate(operation)
+      .toArray();
+
+    const totalCount =
+      await this.awardRepository.countDocuments(match);
+
+    return pagination(totalCount, awards, limit, page, res);
+
+  } catch (error) {
+    return handleErrorResponse(error, res);
   }
+}
+
 
   @Get("/active")
   async getActiveAwards(@Res() res: Response) {
@@ -111,7 +120,7 @@ export class AwardController {
   async getAwardById(@Param("id") id: string, @Res() res: Response) {
     try {
       const award = await this.awardRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -134,7 +143,7 @@ export class AwardController {
   ) {
     try {
       const award = await this.awardRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -158,7 +167,7 @@ export class AwardController {
   async deleteAward(@Param("id") id: string, @Res() res: Response) {
     try {
       const award = await this.awardRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -179,7 +188,7 @@ export class AwardController {
   async toggleActive(@Param("id") id: string, @Res() res: Response) {
     try {
       const award = await this.awardRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
