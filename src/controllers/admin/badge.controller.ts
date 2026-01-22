@@ -73,26 +73,35 @@ export class BadgeController {
   async getAllBadges(@QueryParams() query: any, @Res() res: Response) {
     try {
       const page = Number(query.page ?? 0);
-      const limit = Number(query.limit ?? 10);
-      const skip = page * limit;
-      const filter = { isDelete: 0 };
+      const limit = Number(query.limit ?? 0);
 
-      if (query.page !== undefined && query.limit !== undefined) {
-        const totalCount = await this.badgeRepository.countDocuments(filter);
-        const badges = await this.badgeRepository.find({
-          skip,
-          limit,
-          ...filter
-        });
-        return pagination(totalCount, badges, limit, page, res);
+      const match = { isDelete: 0 };
+
+      const operation: any[] = [];
+
+      operation.push({ $match: match });
+
+      if (limit > 0) {
+        operation.push(
+          { $skip: page * limit },
+          { $limit: limit }
+        );
       }
 
-      const badges = await this.badgeRepository.find(filter);
-      return response(res, StatusCodes.OK, "Badges fetched successfully", badges);
+      const badges = await this.badgeRepository
+        .aggregate(operation)
+        .toArray();
+
+      const totalCount =
+        await this.badgeRepository.countDocuments(match);
+
+      return pagination(totalCount, badges, limit, page, res);
+
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
+
 
   @Get("/active")
   async getActiveBadges(@Res() res: Response) {
@@ -111,7 +120,7 @@ export class BadgeController {
   async getBadgeById(@Param("id") id: string, @Res() res: Response) {
     try {
       const badge = await this.badgeRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -134,7 +143,7 @@ export class BadgeController {
   ) {
     try {
       const badge = await this.badgeRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -158,7 +167,7 @@ export class BadgeController {
   async deleteBadge(@Param("id") id: string, @Res() res: Response) {
     try {
       const badge = await this.badgeRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -179,7 +188,7 @@ export class BadgeController {
   async toggleActive(@Param("id") id: string, @Res() res: Response) {
     try {
       const badge = await this.badgeRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 

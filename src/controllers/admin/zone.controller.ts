@@ -75,23 +75,30 @@ export class ZoneController {
   async getAllZones(@QueryParams() query: any, @Res() res: Response) {
     try {
       const page = Number(query.page ?? 0);
-      const limit = Number(query.limit ?? 10);
-      const skip = page * limit;
+      const limit = Number(query.limit ?? 0);
 
-      const filter = { isDelete: 0 };
+      const match = { isDelete: 0 };
 
-      if (query.page !== undefined && query.limit !== undefined) {
-        const totalCount = await this.zoneRepository.countDocuments(filter);
-        const zones = await this.zoneRepository.find({
-          skip,
-          limit,
-          ...filter
-        });
-        return pagination(totalCount, zones, limit, page, res);
+      const operation: any[] = [];
+
+      operation.push({ $match: match });
+
+      if (limit > 0) {
+        operation.push(
+          { $skip: page * limit },
+          { $limit: limit }
+        );
       }
 
-      const zones = await this.zoneRepository.find(filter);
-      return response(res, StatusCodes.OK, "Zones fetched successfully", zones);
+      const zones = await this.zoneRepository
+        .aggregate(operation)
+        .toArray();
+
+      const totalCount =
+        await this.zoneRepository.countDocuments(match);
+
+      return pagination(totalCount, zones, limit, page, res);
+
     } catch (error) {
       return handleErrorResponse(error, res);
     }
@@ -114,7 +121,7 @@ export class ZoneController {
   async getZoneById(@Param("id") id: string, @Res() res: Response) {
     try {
       const zone = await this.zoneRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -137,7 +144,7 @@ export class ZoneController {
   ) {
     try {
       const zone = await this.zoneRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -163,7 +170,7 @@ export class ZoneController {
   async deleteZone(@Param("id") id: string, @Res() res: Response) {
     try {
       const zone = await this.zoneRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
@@ -184,7 +191,7 @@ export class ZoneController {
   async toggleActive(@Param("id") id: string, @Res() res: Response) {
     try {
       const zone = await this.zoneRepository.findOneBy({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         isDelete: 0
       });
 
