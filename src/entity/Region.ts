@@ -7,7 +7,7 @@ import {
 } from "typeorm";
 import { ObjectId } from "mongodb";
 
-@Entity()
+@Entity('regions')
 export class Region {
   @ObjectIdColumn()
   id: ObjectId;

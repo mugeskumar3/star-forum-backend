@@ -6,7 +6,7 @@ import {
     UpdateDateColumn
 } from "typeorm";
 import { ObjectId } from "mongodb";
-@Entity()
+@Entity('badges')
 export class Badge {
     @ObjectIdColumn()
     id: ObjectId;

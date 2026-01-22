@@ -6,7 +6,7 @@ import {
     UpdateDateColumn
 } from "typeorm";
 import { ObjectId } from "mongodb";
-@Entity()
+@Entity('businesscategories')
 export class BusinessCategory {
     @ObjectIdColumn()
     id: ObjectId;
