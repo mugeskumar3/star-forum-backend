@@ -14,6 +14,6 @@ export const AppDataSource = new DataSource({
     url: process.env.MONGO_URI || '',
     synchronize: true,
     logging: true,
-    entities: [Admin, AdminUser,Award,BusinessCategory,Badge,Region,Zone],
-    // useUnifiedTopology: true,
+ entities: ["src/entity/**/*.ts"],
+ // useUnifiedTopology: true,
 });
