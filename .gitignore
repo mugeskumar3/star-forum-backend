@@ -8,3 +8,4 @@ temp/
 uploads/
 dist/
 .DS_Store
+public/

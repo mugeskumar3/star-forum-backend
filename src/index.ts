@@ -12,6 +12,7 @@ AppDataSource.initialize()
     await seedDefaultAdmin();
 
     const app = express();
+    app.use("/public", express.static("public"));
 
     app.use(
       cors({
