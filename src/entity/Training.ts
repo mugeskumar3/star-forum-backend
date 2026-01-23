@@ -14,6 +14,9 @@ export class Training {
   id: ObjectId;
 
   @Column()
+  trainingId: string;
+
+  @Column()
   chapterIds: ObjectId[];
 
   @Column()

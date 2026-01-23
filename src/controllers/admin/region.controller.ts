@@ -150,20 +150,47 @@ export class RegionController {
         return response(res, StatusCodes.NOT_FOUND, "Region not found");
       }
 
-      if (body.zoneId !== undefined)
+      if (body.region !== undefined || body.zoneId !== undefined) {
+        const regionName = body.region ?? region.region;
+        const zoneId = body.zoneId ?? region.zoneId;
+
+        const duplicate = await this.regionRepository.findOne({
+          where: {
+            region: regionName,
+            zoneId: new ObjectId(zoneId),
+            isDelete: 0,
+            _id: { $ne: new ObjectId(id) }
+          }
+        });
+
+        if (duplicate) {
+          return response(
+            res,
+            StatusCodes.CONFLICT,
+            "Region already exists in this zone"
+          );
+        }
+      }
+
+      if (body.zoneId !== undefined) {
         region.zoneId = new ObjectId(body.zoneId);
+      }
 
-      if (body.region !== undefined)
+      if (body.region !== undefined) {
         region.region = body.region;
+      }
 
-      if (body.edId !== undefined)
+      if (body.edId !== undefined) {
         region.edId = new ObjectId(body.edId);
+      }
 
-      if (body.rdIds !== undefined)
+      if (body.rdIds !== undefined) {
         region.rdIds = body.rdIds.map(id => new ObjectId(id));
+      }
 
-      if (body.isActive !== undefined)
+      if (body.isActive !== undefined) {
         region.isActive = body.isActive;
+      }
 
       region.updatedBy = new ObjectId(req.user.userId);
 
@@ -179,6 +206,7 @@ export class RegionController {
       return handleErrorResponse(error, res);
     }
   }
+
 
   @Delete("/:id")
   async deleteRegion(@Param("id") id: string, @Res() res: Response) {

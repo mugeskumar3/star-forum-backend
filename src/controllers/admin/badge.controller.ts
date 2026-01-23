@@ -153,14 +153,44 @@ export class BadgeController {
         return response(res, StatusCodes.NOT_FOUND, "Badge not found");
       }
 
-      if (body.name !== undefined) badge.name = body.name;
-      if (body.isActive !== undefined) badge.isActive = body.isActive;
-      if (body.badgeImage !== undefined) badge.badgeImage = body.badgeImage;
+      if (body.name) {
+        const nameExists = await this.badgeRepository.findOne({
+          where: {
+            name: body.name,
+            isDelete: 0,
+            _id: { $ne: new ObjectId(id) }
+          }
+        });
+
+        if (nameExists) {
+          return response(
+            res,
+            StatusCodes.CONFLICT,
+            "Badge name already exists"
+          );
+        }
+
+        badge.name = body.name;
+      }
+
+      if (body.isActive !== undefined) {
+        badge.isActive = body.isActive;
+      }
+
+      if (body.badgeImage !== undefined) {
+        badge.badgeImage = body.badgeImage;
+      }
 
       badge.updatedBy = new ObjectId(req.user.userId);
 
       const updatedBadge = await this.badgeRepository.save(badge);
-      return response(res, StatusCodes.OK, "Badge updated successfully", updatedBadge);
+
+      return response(
+        res,
+        StatusCodes.OK,
+        "Badge updated successfully",
+        updatedBadge
+      );
     } catch (error) {
       return handleErrorResponse(error, res);
     }

@@ -160,17 +160,46 @@ export class BusinessCategoryController {
         return response(res, StatusCodes.NOT_FOUND, "Business category not found");
       }
 
-      if (body.name !== undefined) businessCategory.name = body.name;
-      if (body.isActive !== undefined) businessCategory.isActive = body.isActive;
+      if (body.name) {
+        const nameExists = await this.businessCategoryRepository.findOne({
+          where: {
+            name: body.name,
+            isDelete: 0,
+            _id: { $ne: new ObjectId(id) }
+          }
+        });
+
+        if (nameExists) {
+          return response(
+            res,
+            StatusCodes.CONFLICT,
+            "Business category name already exists"
+          );
+        }
+
+        businessCategory.name = body.name;
+      }
+
+      if (body.isActive !== undefined) {
+        businessCategory.isActive = body.isActive;
+      }
 
       businessCategory.updatedBy = new ObjectId(req.user.userId);
 
-      const updatedBusinessCategory = await this.businessCategoryRepository.save(businessCategory);
-      return response(res, StatusCodes.OK, "Business category updated successfully", updatedBusinessCategory);
+      const updatedBusinessCategory =
+        await this.businessCategoryRepository.save(businessCategory);
+
+      return response(
+        res,
+        StatusCodes.OK,
+        "Business category updated successfully",
+        updatedBusinessCategory
+      );
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
+
 
   @Delete("/:id")
   async deleteBusinessCategory(@Param("id") id: string, @Res() res: Response) {
