@@ -51,6 +51,8 @@ export class BadgeController {
 
       const badge = new Badge();
       badge.name = body.name;
+      badge.type = body.type;
+      badge.badgeImage = body.badgeImage;
       badge.isActive = body.isActive ?? 1;
       badge.isDelete = 0;
       badge.createdBy = new ObjectId(req.user.userId);
@@ -153,6 +155,7 @@ export class BadgeController {
 
       if (body.name !== undefined) badge.name = body.name;
       if (body.isActive !== undefined) badge.isActive = body.isActive;
+      if (body.badgeImage !== undefined) badge.badgeImage = body.badgeImage;
 
       badge.updatedBy = new ObjectId(req.user.userId);
 
