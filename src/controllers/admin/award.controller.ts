@@ -70,37 +70,37 @@ export class AwardController {
   }
 
   @Get("/")
-async getAllAwards(@QueryParams() query: any, @Res() res: Response) {
-  try {
-    const page = Number(query.page ?? 0);
-    const limit = Number(query.limit ?? 0);
+  async getAllAwards(@QueryParams() query: any, @Res() res: Response) {
+    try {
+      const page = Number(query.page ?? 0);
+      const limit = Number(query.limit ?? 0);
 
-    const match = { isDelete: 0 };
+      const match = { isDelete: 0 };
 
-    const operation: any[] = [];
+      const operation: any[] = [];
 
-    operation.push({ $match: match });
+      operation.push({ $match: match });
 
-    if (limit > 0) {
-      operation.push(
-        { $skip: page * limit },
-        { $limit: limit }
-      );
+      if (limit > 0) {
+        operation.push(
+          { $skip: page * limit },
+          { $limit: limit }
+        );
+      }
+
+      const awards = await this.awardRepository
+        .aggregate(operation)
+        .toArray();
+
+      const totalCount =
+        await this.awardRepository.countDocuments(match);
+
+      return pagination(totalCount, awards, limit, page, res);
+
+    } catch (error) {
+      return handleErrorResponse(error, res);
     }
-
-    const awards = await this.awardRepository
-      .aggregate(operation)
-      .toArray();
-
-    const totalCount =
-      await this.awardRepository.countDocuments(match);
-
-    return pagination(totalCount, awards, limit, page, res);
-
-  } catch (error) {
-    return handleErrorResponse(error, res);
   }
-}
 
 
   @Get("/active")
@@ -151,17 +151,45 @@ async getAllAwards(@QueryParams() query: any, @Res() res: Response) {
         return response(res, StatusCodes.NOT_FOUND, "Award not found");
       }
 
-      if (body.name !== undefined) award.name = body.name;
-      if (body.isActive !== undefined) award.isActive = body.isActive;
+      if (body.name) {
+        const nameExists = await this.awardRepository.findOne({
+          where: {
+            name: body.name,
+            isDelete: 0,
+            _id: { $ne: new ObjectId(id) }
+          }
+        });
+
+        if (nameExists) {
+          return response(
+            res,
+            StatusCodes.CONFLICT,
+            "Award name already exists"
+          );
+        }
+
+        award.name = body.name;
+      }
+
+      if (body.isActive !== undefined) {
+        award.isActive = body.isActive;
+      }
 
       award.updatedBy = new ObjectId(req.user.userId);
 
       const updatedAward = await this.awardRepository.save(award);
-      return response(res, StatusCodes.OK, "Award updated successfully", updatedAward);
+
+      return response(
+        res,
+        StatusCodes.OK,
+        "Award updated successfully",
+        updatedAward
+      );
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
+
 
   @Delete("/:id")
   async deleteAward(@Param("id") id: string, @Res() res: Response) {

@@ -153,6 +153,34 @@ export class ZoneController {
         return response(res, StatusCodes.NOT_FOUND, "Zone not found");
       }
 
+      if (
+        body.name !== undefined ||
+        body.country !== undefined ||
+        body.state !== undefined
+      ) {
+        const zoneName = body.name ?? zone.name;
+        const country = body.country ?? zone.country;
+        const state = body.state ?? zone.state;
+
+        const duplicate = await this.zoneRepository.findOne({
+          where: {
+            name: zoneName,
+            country,
+            state,
+            isDelete: 0,
+            _id: { $ne: new ObjectId(id) }
+          }
+        });
+
+        if (duplicate) {
+          return response(
+            res,
+            StatusCodes.CONFLICT,
+            "Zone already exists in this country and state"
+          );
+        }
+      }
+
       if (body.name !== undefined) zone.name = body.name;
       if (body.country !== undefined) zone.country = body.country;
       if (body.state !== undefined) zone.state = body.state;
@@ -161,11 +189,18 @@ export class ZoneController {
       zone.updatedBy = new ObjectId(req.user.userId);
 
       const updatedZone = await this.zoneRepository.save(zone);
-      return response(res, StatusCodes.OK, "Zone updated successfully", updatedZone);
+
+      return response(
+        res,
+        StatusCodes.OK,
+        "Zone updated successfully",
+        updatedZone
+      );
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
+
 
   @Delete("/:id")
   async deleteZone(@Param("id") id: string, @Res() res: Response) {
@@ -246,5 +281,5 @@ export class ZoneController {
       return handleErrorResponse(error, res);
     }
   }
-  
+
 }

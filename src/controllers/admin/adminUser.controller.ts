@@ -43,8 +43,20 @@ export class AdminUserController {
         @Res() res: Response
     ) {
         try {
-            const adminUser = new AdminUser();
+            const existingUser = await this.adminUserRepository.findOneBy({
+                phoneNumber: body.phoneNumber,
+                isDelete: 0
+            });
 
+            if (existingUser) {
+                return response(
+                    res,
+                    StatusCodes.CONFLICT,
+                    "Mobile number already exists"
+                );
+            }
+
+            const adminUser = new AdminUser();
             adminUser.name = body.name;
             adminUser.email = body.email;
             adminUser.companyName = body.companyName;
@@ -58,13 +70,16 @@ export class AdminUserController {
 
             const savedAdminUser = await this.adminUserRepository.save(adminUser);
 
-            return response(res, StatusCodes.CREATED, "AdminUser created successfully", savedAdminUser);
+            return response(
+                res,
+                StatusCodes.CREATED,
+                "AdminUser created successfully",
+                savedAdminUser
+            );
         } catch (error) {
             return handleErrorResponse(error, res);
         }
     }
-
-
 
     @Get("/")
     async getAllAdminUsers(
@@ -202,10 +217,29 @@ export class AdminUserController {
                 return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
             }
 
+            if (body.phoneNumber) {
+                const mobileExists = await this.adminUserRepository.findOne({
+                    where: {
+                        phoneNumber: body.phoneNumber,
+                        isDelete: 0,
+                        _id: { $ne: new ObjectId(id) }
+                    }
+                });
+
+                if (mobileExists) {
+                    return response(
+                        res,
+                        StatusCodes.CONFLICT,
+                        "Mobile number already exists"
+                    );
+                }
+
+                adminUser.phoneNumber = body.phoneNumber;
+            }
+
             if (body.name) adminUser.name = body.name;
             if (body.email) adminUser.email = body.email;
             if (body.companyName) adminUser.companyName = body.companyName;
-            if (body.phoneNumber) adminUser.phoneNumber = body.phoneNumber;
 
             if (body.pin) {
                 adminUser.pin = await bcrypt.hash(body.pin, 10);
@@ -213,7 +247,9 @@ export class AdminUserController {
 
             if (body.roleId) adminUser.roleId = new ObjectId(body.roleId);
             if (body.isActive !== undefined) adminUser.isActive = body.isActive;
+
             adminUser.updatedBy = new ObjectId(req.user.userId);
+
             const updatedAdminUser = await this.adminUserRepository.save(adminUser);
 
             return response(
@@ -222,10 +258,11 @@ export class AdminUserController {
                 "AdminUser updated successfully",
                 updatedAdminUser
             );
-        } catch (error: any) {
+        } catch (error) {
             return handleErrorResponse(error, res);
         }
     }
+
 
     @Delete("/:id")
     async deleteAdminUser(@Param("id") id: string, @Res() res: Response) {
