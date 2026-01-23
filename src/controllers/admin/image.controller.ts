@@ -35,7 +35,6 @@ export class ImageController {
             }
             const file = req.files.file;
 
-            // ✅ Validate & extract extension
             const extension = await imageService.validateImageFile(file);
 
             // ✅ Generate safe filename

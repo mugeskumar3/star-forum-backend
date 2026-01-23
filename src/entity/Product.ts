@@ -19,6 +19,7 @@ export class Product {
 
     @Column("double")
     price: number;
+    
     @Index()
     @Column()
     categoryId: ObjectId; // Reference to category collection

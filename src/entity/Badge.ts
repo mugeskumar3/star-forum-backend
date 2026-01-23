@@ -6,6 +6,7 @@ import {
     UpdateDateColumn
 } from "typeorm";
 import { ObjectId } from "mongodb";
+import { BadgeType } from "../enum/badges";
 @Entity('badges')
 export class Badge {
     @ObjectIdColumn()
@@ -13,6 +14,20 @@ export class Badge {
 
     @Column({ unique: true })
     name: string;
+
+    @Column({
+        type: "enum",
+        enum: BadgeType,
+        default: BadgeType.MEMBER
+    })
+    type: BadgeType;
+
+    @Column("simple-json", { nullable: true })
+    badgeImage?: {
+        imageName?: string;
+        imagePath?: string;
+        originalName?: string;
+    };
 
     @Column({ default: 1 })
     isActive: number;

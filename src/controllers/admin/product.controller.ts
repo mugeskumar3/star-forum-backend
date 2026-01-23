@@ -5,7 +5,7 @@ import path from "path";
 import { AuthMiddleware, AuthPayload } from "../../middlewares/AuthMiddleware";
 import { AppDataSource } from "../../data-source";
 import { Product } from "../../entity/Product";
-import { CreateProductDto, UpdateProductDto } from "../../dto/admin/prodcut.dto";
+import { CreateProductDto, UpdateProductDto } from "../../dto/admin/product.dto";
 import { handleErrorResponse, pagination, response } from "../../utils";
 interface RequestWithFiles extends Request {
     query: any;
@@ -44,7 +44,7 @@ export class ProductController {
             product.productName = body.productName;
             product.price = Number(body.price);
             product.categoryId = new ObjectId(body.categoryId);
-            product.productImage = body.productImage; // image path
+            product.productImage = body.productImage; 
             product.description = body.description || "";
 
             product.isActive = 1;

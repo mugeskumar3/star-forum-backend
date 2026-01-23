@@ -30,7 +30,7 @@ AppDataSource.initialize()
       })
     );
 
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = process.env.NODE_ENV === "prod";
 
     /* ✅ ADMIN API */
     useExpressServer(app, {
