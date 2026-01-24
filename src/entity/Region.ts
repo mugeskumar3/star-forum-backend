@@ -25,10 +25,10 @@ export class Region {
   region: string;
 
   @Column()
-  edId: ObjectId;
+  edId: ObjectId; //admin entity
 
   @Column()
-  rdIds: ObjectId[];
+  rdIds: ObjectId[]; // admin entity
 
   @Column()
   createdBy: ObjectId;
