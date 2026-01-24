@@ -14,7 +14,6 @@ import {
 import { Response } from "express";
 import { ObjectId } from "mongodb";
 import { StatusCodes } from "http-status-codes";
-
 import { AppDataSource } from "../../data-source";
 import { Region } from "../../entity/Region";
 import { AuthMiddleware } from "../../middlewares/AuthMiddleware";
@@ -81,31 +80,106 @@ export class RegionController {
 
       const match: any = { isDelete: 0 };
 
-      if (query.zoneId) {
-        match.zoneId = new ObjectId(query.zoneId);
-      }
-
       if (query.isActive !== undefined) {
         match.isActive = Number(query.isActive);
       }
 
-      const operation: any[] = [];
+      if (query.zoneId) {
+        match.zoneId = new ObjectId(query.zoneId);
+      }
 
-      operation.push({ $match: match });
+      if (query.edId) {
+        match.edId = new ObjectId(query.edId);
+      }
+
+      if (query.rdId) {
+        match.rdIds = new ObjectId(query.rdId);
+      }
+
+      const pipeline: any[] = [
+        { $match: match },
+        {
+          $lookup: {
+            from: "zones",
+            let: { zoneId: "$zoneId" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$zoneId"] } } },
+              { $project: { _id: 1, name: 1, country: 1, state: 1 } }
+            ],
+            as: "zone"
+          }
+        },
+        { $unwind: { path: "$zone", preserveNullAndEmptyArrays: true } },
+        ...(query.zoneName
+          ? [{ $match: { "zone.name": { $regex: query.zoneName, $options: "i" } } }]
+          : []),
+        {
+          $lookup: {
+            from: "adminusers",
+            let: { edId: "$edId" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$edId"] } } },
+              { $project: { _id: 1, name: 1 } }
+            ],
+            as: "ed"
+          }
+        },
+        { $unwind: { path: "$ed", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "adminusers",
+            let: { rdIds: "$rdIds" },
+            pipeline: [
+              { $match: { $expr: { $in: ["$_id", "$$rdIds"] } } },
+              { $project: { _id: 1, name: 1 } }
+            ],
+            as: "rds"
+          }
+        },
+        {
+          $lookup: {
+            from: "adminusers",
+            let: { createdBy: "$createdBy" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$createdBy"] } } },
+              { $project: { _id: 1, name: 1 } }
+            ],
+            as: "createdByUser"
+          }
+        },
+        { $unwind: { path: "$createdByUser", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            region: 1,
+            zoneId: "$zone._id",
+            zoneName: "$zone.name",
+            country: "$zone.country",
+            state: "$zone.state",
+            edId: "$ed._id",
+            edName: "$ed.name",
+            rdIds: "$rds._id",
+            rdNames: "$rds.name",
+            createdBy: "$createdByUser._id",
+            createdByName: "$createdByUser.name",
+            isActive: 1,
+            createdAt: 1
+          }
+        }
+      ];
 
       if (limit > 0) {
-        operation.push(
+        pipeline.push(
           { $skip: page * limit },
           { $limit: limit }
         );
       }
 
       const regions = await this.regionRepository
-        .aggregate(operation)
+        .aggregate(pipeline)
         .toArray();
 
-      const totalCount =
-        await this.regionRepository.countDocuments(match);
+      const totalCount = await this.regionRepository.countDocuments(match);
 
       return pagination(totalCount, regions, limit, page, res);
 
@@ -118,16 +192,101 @@ export class RegionController {
   @Get("/:id")
   async getRegionById(@Param("id") id: string, @Res() res: Response) {
     try {
-      const region = await this.regionRepository.findOneBy({
-        _id: new ObjectId(id),
-        isDelete: 0
-      });
+      const pipeline: any[] = [
+        {
+          $match: {
+            _id: new ObjectId(id),
+            isDelete: 0
+          }
+        },
 
-      if (!region) {
+        {
+          $lookup: {
+            from: "zones",
+            let: { zoneId: "$zoneId" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$zoneId"] } } },
+              { $project: { _id: 1, name: 1, country: 1, state: 1 } }
+            ],
+            as: "zone"
+          }
+        },
+        { $unwind: { path: "$zone", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "adminusers",
+            let: { edId: "$edId" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$edId"] } } },
+              { $project: { _id: 1, name: 1 } }
+            ],
+            as: "ed"
+          }
+        },
+        { $unwind: { path: "$ed", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "adminusers",
+            let: { rdIds: "$rdIds" },
+            pipeline: [
+              { $match: { $expr: { $in: ["$_id", "$$rdIds"] } } },
+              { $project: { _id: 1, name: 1 } }
+            ],
+            as: "rds"
+          }
+        },
+        {
+          $lookup: {
+            from: "adminusers",
+            let: { createdBy: "$createdBy" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$createdBy"] } } },
+              { $project: { _id: 1, name: 1 } }
+            ],
+            as: "createdByUser"
+          }
+        },
+        { $unwind: { path: "$createdByUser", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            region: 1,
+
+            zoneId: "$zone._id",
+            zoneName: "$zone.name",
+            country: "$zone.country",
+            state: "$zone.state",
+
+            edId: "$ed._id",
+            edName: "$ed.name",
+
+            rdIds: "$rds._id",
+            rdNames: "$rds.name",
+
+            createdById: "$createdByUser._id",
+            createdByName: "$createdByUser.name",
+
+            isActive: 1,
+            createdAt: 1,
+            updatedAt: 1
+          }
+        }
+      ];
+      const result = await this.regionRepository
+        .aggregate(pipeline)
+        .toArray();
+
+      if (!result.length) {
         return response(res, StatusCodes.NOT_FOUND, "Region not found");
       }
 
-      return response(res, StatusCodes.OK, "Region fetched successfully", region);
+      return response(
+        res,
+        StatusCodes.OK,
+        "Region fetched successfully",
+        result[0]
+      );
+
     } catch (error) {
       return handleErrorResponse(error, res);
     }
