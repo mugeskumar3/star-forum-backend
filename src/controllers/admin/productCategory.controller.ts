@@ -23,6 +23,7 @@ import pagination from "../../utils/pagination";
 import { AuthPayload } from "../../middlewares/AuthMiddleware";
 import { CreateProductCategoryDto, UpdateProductCategoryDto } from "../../dto/admin/ProductCategory.dto";
 import { ProductCategory } from "../../entity/ProductCategory";
+import { Product } from "../../entity/Product";
 
 interface RequestWithUser extends Request {
   user: AuthPayload;
@@ -32,7 +33,7 @@ interface RequestWithUser extends Request {
 @JsonController("/product-category")
 export class ProductCategoryController {
   private productCategoryRepository = AppDataSource.getMongoRepository(ProductCategory);
-
+  private productRepository = AppDataSource.getMongoRepository(Product);
   @Post("/")
   async createProductCategory(
     @Body() body: CreateProductCategoryDto,
@@ -51,6 +52,7 @@ export class ProductCategoryController {
 
       const productCategory = new ProductCategory();
       productCategory.name = body.name;
+      productCategory.categoryImage = body.categoryImage;
       productCategory.isActive = body.isActive ?? 1;
       productCategory.isDelete = 0;
       productCategory.createdBy = new ObjectId(req.user.userId);
@@ -184,6 +186,10 @@ export class ProductCategoryController {
         productCategory.isActive = body.isActive;
       }
 
+      if (body.categoryImage) {
+        productCategory.categoryImage = body.categoryImage;
+      }
+
       productCategory.updatedBy = new ObjectId(req.user.userId);
 
       const updatedProductCategory =
@@ -204,23 +210,48 @@ export class ProductCategoryController {
   @Delete("/:id")
   async deleteProductCategory(@Param("id") id: string, @Res() res: Response) {
     try {
+      const categoryId = new ObjectId(id);
+
       const productCategory = await this.productCategoryRepository.findOneBy({
-        _id: new ObjectId(id),
+        _id: categoryId,
         isDelete: 0
       });
 
       if (!productCategory) {
-        return response(res, StatusCodes.NOT_FOUND, "Product category not found");
+        return response(
+          res,
+          StatusCodes.NOT_FOUND,
+          "Product category not found"
+        );
+      }
+
+      const productCount = await this.productRepository.countDocuments({
+        categoryId: categoryId,
+        isDelete: 0
+      });
+
+      if (productCount > 0) {
+        return response(
+          res,
+          StatusCodes.CONFLICT,
+          `Cannot delete category. ${productCount} product(s) are linked to this category.`
+        );
       }
 
       productCategory.isDelete = 1;
       await this.productCategoryRepository.save(productCategory);
 
-      return response(res, StatusCodes.OK, "Product category deleted successfully");
+      return response(
+        res,
+        StatusCodes.OK,
+        "Product category deleted successfully"
+      );
+
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
+
 
   @Put("/:id/toggle-active")
   async toggleActive(@Param("id") id: string, @Res() res: Response) {
