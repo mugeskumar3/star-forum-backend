@@ -30,12 +30,12 @@ export class CreateProductDto {
     // Image path (uploaded separately)
     @IsOptional()
     productImage: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     } = {
-            imageName: "",
-            imagePath: "",
+            fileName: "",
+            Path: "",
             originalName: ""
         };
 
@@ -72,12 +72,12 @@ export class UpdateProductDto {
 
     @IsOptional()
     productImage: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     } = {
-            imageName: "",
-            imagePath: "",
+            fileName: "",
+            Path: "",
             originalName: ""
         };
 
