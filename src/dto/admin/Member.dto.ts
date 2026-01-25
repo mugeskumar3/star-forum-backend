@@ -77,12 +77,12 @@ export class CreateMemberDto {
     // BASIC INFORMATION
     @IsOptional()
     profileImage?: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     } = {
-            imageName: "",
-            imagePath: "",
+            fileName: "",
+            Path: "",
             originalName: ""
         };
 
