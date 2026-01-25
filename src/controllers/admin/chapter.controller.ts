@@ -37,8 +37,6 @@ export class ChapterController {
     try {
       const chapter = this.chapterRepository.create({
         chapterName: body.chapterName,
-        country: body.country,
-        state: body.state,
         zoneId: new ObjectId(body.zoneId),
         regionId: new ObjectId(body.regionId),
         edId: new ObjectId(body.edId),

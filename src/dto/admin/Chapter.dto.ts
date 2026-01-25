@@ -15,14 +15,6 @@ export class CreateChapterDto {
   chapterName: string;
 
   @IsNotEmpty()
-  @IsString()
-  country: string;
-
-  @IsNotEmpty()
-  @IsString()
-  state: string;
-
-  @IsNotEmpty()
   @IsMongoId()
   zoneId: string;
 
@@ -45,7 +37,7 @@ export class CreateChapterDto {
   @IsNotEmpty()
   @IsString()
   location: string;
-    
+
   @IsNotEmpty()
   @IsEnum(Weekday, {
     message: "weekday must be a valid weekday"
@@ -54,7 +46,7 @@ export class CreateChapterDto {
 
   @IsNotEmpty()
   @IsEnum(MeetingType, {
-    message: "meetingType must be In Person, Online, or Hybrid"
+    message: "meetingType must be in-person | online | hybrid"
   })
   meetingType: MeetingType;
 
@@ -66,14 +58,6 @@ export class UpdateChapterDto {
   @IsOptional()
   @IsString()
   chapterName?: string;
-
-  @IsOptional()
-  @IsString()
-  country?: string;
-
-  @IsOptional()
-  @IsString()
-  state?: string;
 
   @IsOptional()
   @IsMongoId()

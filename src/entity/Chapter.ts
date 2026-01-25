@@ -1,12 +1,12 @@
 import {
     Entity,
     ObjectIdColumn,
-    ObjectId,
     Column,
     CreateDateColumn,
     UpdateDateColumn
 } from "typeorm";
 import { MeetingType, Weekday } from "../enum/chapter";
+import { ObjectId } from "mongodb";
 
 @Entity("chapters")
 export class Chapter {
@@ -17,21 +17,15 @@ export class Chapter {
     chapterName: string;
 
     @Column()
-    country: string;
-
-    @Column()
-    state: string;
-
-    @Column(() => ObjectId)
     zoneId: ObjectId;
 
-    @Column(() => ObjectId)
+    @Column()
     regionId: ObjectId;
 
-    @Column(() => ObjectId)
+    @Column()
     edId: ObjectId;
 
-    @Column(() => ObjectId)
+    @Column()
     rdId: ObjectId;
 
     @Column()
