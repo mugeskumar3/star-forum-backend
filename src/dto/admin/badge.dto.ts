@@ -8,12 +8,12 @@ export class CreateBadgeDto {
 
     @IsOptional()
     badgeImage: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     } = {
-            imageName: "",
-            imagePath: "",
+            fileName: "",
+            Path: "",
             originalName: ""
         };
 
@@ -36,12 +36,12 @@ export class UpdateBadgeDto {
 
     @IsOptional()
     badgeImage: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     } = {
-            imageName: "",
-            imagePath: "",
+            fileName: "",
+            Path: "",
             originalName: ""
         };
 

@@ -24,8 +24,8 @@ export class Badge {
 
     @Column("simple-json", { nullable: true })
     badgeImage?: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     };
 
