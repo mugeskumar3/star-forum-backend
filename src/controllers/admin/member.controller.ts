@@ -7,6 +7,7 @@ import { StatusCodes } from "http-status-codes";
 import response from "../../utils/response";
 import { ObjectId } from "mongodb";
 import { ApiError, handleErrorResponse, pagination } from "../../utils";
+import { generateMembershipId } from "../../utils/id.generator";
 interface RequestWithUser extends Request {
     query: any;
     files(files: any): unknown;
@@ -25,8 +26,6 @@ export class MemberController {
         @Res() res: Response
     ) {
         try {
-            console.log(req.files, 'aa');
-
             // -------------------------
             // CHECK EXISTING MEMBER
             // -------------------------
@@ -47,13 +46,14 @@ export class MemberController {
             // CREATE MEMBER OBJECT
             // -------------------------
             const memberData = new Member();
+            memberData.membershipId = await generateMembershipId();
+            // memberData.membershipId = body.membershipId;
 
             memberData.profileImage = body.profileImage || undefined;
             memberData.fullName = body.fullName;
             memberData.mobileNumber = body.mobileNumber;
             memberData.email = body.email;
             memberData.companyName = body.companyName;
-            memberData.membershipId = body.membershipId;
 
             memberData.region = new ObjectId(body.region);
             memberData.chapter = new ObjectId(body.chapter);
@@ -400,5 +400,11 @@ export class MemberController {
         } catch (error) {
             return handleErrorResponse(error, res);
         }
+    }
+    @Post("/generate/id")
+    async getMembershipId(@Req() req: RequestWithUser,
+        @Res() res: Response) {
+        const id = await generateMembershipId();
+        return response(res, StatusCodes.OK, 'Member Id Created successfully', id);
     }
 }
