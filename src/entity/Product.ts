@@ -19,15 +19,15 @@ export class Product {
 
     @Column("double")
     price: number;
-    
+
     @Index()
     @Column()
     categoryId: ObjectId; // Reference to category collection
 
     @Column("simple-json", { nullable: true })
     productImage?: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     };
 

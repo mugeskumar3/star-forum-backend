@@ -16,8 +16,8 @@ export class ProductCategory {
 
     @Column("simple-json", { nullable: true })
     categoryImage?: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     };
 

@@ -7,12 +7,12 @@ export class CreateProductCategoryDto {
 
     @IsOptional()
     categoryImage: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     } = {
-            imageName: "",
-            imagePath: "",
+            fileName: "",
+            Path: "",
             originalName: ""
         };
 
@@ -28,12 +28,12 @@ export class UpdateProductCategoryDto {
 
     @IsOptional()
     categoryImage: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     } = {
-            imageName: "",
-            imagePath: "",
+            fileName: "",
+            Path: "",
             originalName: ""
         };
 
