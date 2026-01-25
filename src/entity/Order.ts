@@ -40,9 +40,17 @@ export class Order {
     memberId: ObjectId;
 
     // PRODUCT (single product for now)
-    @Column()
-    productId: ObjectId;
+    @Column("simple-json", { nullable: true })
+    products: {
+        productId: ObjectId;
+        amount: number;
+        qty: number;
+        price: number;
+        total: number;
+    }[];
 
+    @Column({ default: 0 })
+    grantTotal: number;
     // SYSTEM
     @Column({ default: 1 })
     isActive: number;
@@ -77,5 +85,8 @@ export class Order {
         default: PaymentStatus.PENDING
     })
     paymentStatus: PaymentStatus;
+
+    @Column()
+    orderId?: string;
 }
 

@@ -17,6 +17,7 @@ import { AppDataSource } from "../../data-source";
 import { Order } from "../../entity/Order";
 import { CreateOrderDto } from "../../dto/admin/Order.dto";
 import { handleErrorResponse, pagination, response } from "../../utils";
+import { generateOrderId } from "../../utils/id.generator";
 
 interface RequestWithUser extends Request {
     query: any;
@@ -46,7 +47,8 @@ export class OrderController {
             order.regionId = new ObjectId(body.regionId);
             order.chapterId = new ObjectId(body.chapterId);
             order.memberId = new ObjectId(body.memberId);
-            order.productId = new ObjectId(body.productId);
+            if (body.products) order.products = body.products;
+            order.orderId = await generateOrderId();
 
             order.isActive = 1;
             order.isDelete = 0;
@@ -100,7 +102,7 @@ export class OrderController {
             if (body.regionId) order.regionId = new ObjectId(body.regionId);
             if (body.chapterId) order.chapterId = new ObjectId(body.chapterId);
             if (body.memberId) order.memberId = new ObjectId(body.memberId);
-            if (body.productId) order.productId = new ObjectId(body.productId);
+            if (body.products) order.products = body.products;
 
             order.updatedBy = new ObjectId(req.user.userId);
             order.updatedAt = new Date();
@@ -431,6 +433,12 @@ export class OrderController {
         } catch (error) {
             return handleErrorResponse(error, res);
         }
+    }
+    @Post("/generate/id")
+    async getOrderId(@Req() req: RequestWithUser,
+        @Res() res: Response) {
+        const id = await generateOrderId();
+        return response(res, StatusCodes.OK, 'Order Id Created successfully', id);
     }
 
 }
