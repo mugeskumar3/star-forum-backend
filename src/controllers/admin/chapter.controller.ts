@@ -243,16 +243,15 @@ async getAllChapters(
               weekday: 1,
               meetingType: 1,
               isActive: 1,
-
               zoneId: 1,
               zoneName: 1,
               country: 1,
               state: 1,
-
               regionId: 1,
               regionName: 1,
-
+              edId: 1,
               edName: 1,
+              rdId: 1,
               rdName: 1,
               createdByName: 1,
               updatedByName: 1,
@@ -382,16 +381,15 @@ async getAllChapters(
                         weekday: 1,
                         meetingType: 1,
                         isActive: 1,
-
                         zoneId: 1,
                         zoneName: "$zone.name",
                         country: "$zone.country",
                         state: "$zone.state",
-
                         regionId: 1,
                         regionName: "$region.region",
-
+                        edId: 1,
                         edName: "$ed.name",
+                        rdId: 1,
                         rdName: "$rd.name",
                         createdByName: "$createdByUser.name",
                         updatedByName: "$updatedByUser.name"
