@@ -12,6 +12,7 @@ import {
     IsIn,
 } from "class-validator";
 import { Type } from "class-transformer";
+import { ObjectId } from "mongodb";
 
 // ------------------------------
 // OFFICE ADDRESS DTO
@@ -65,7 +66,7 @@ export class AwardDto {
     tenure: string;
 
     @IsString()
-    award: string;
+    award: ObjectId;
 }
 
 // ------------------------------
@@ -178,13 +179,6 @@ export class CreateMemberDto {
     @ValidateNested({ each: true })
     @Type(() => TrainingDto)
     trainings?: TrainingDto[];
-
-    // AWARDS
-    @IsString()
-    tenure: string;
-
-    @IsString()
-    awardSelected: string;
 
     @IsOptional()
     @ValidateNested({ each: true })
@@ -317,14 +311,6 @@ export class UpdateMemberDto {
     @ValidateNested({ each: true })
     @Type(() => TrainingDto)
     trainings?: TrainingDto[];
-
-    @IsOptional()
-    @IsString()
-    tenure?: string;
-
-    @IsOptional()
-    @IsString()
-    awardSelected?: string;
 
     @IsOptional()
     @ValidateNested({ each: true })

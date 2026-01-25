@@ -103,8 +103,6 @@ export class MemberController {
             // -------------------------
             // AWARDS REPORT
             // -------------------------
-            memberData.tenure = body.tenure;
-            memberData.awardSelected = body.awardSelected;
             memberData.awards = body.awards;
 
             // -------------------------
