@@ -16,10 +16,6 @@ export class CreateTrainingDto {
 
     @IsNotEmpty()
     @IsString()
-    trainingId: string;
-
-    @IsNotEmpty()
-    @IsString()
     title: string;
 
     @IsNotEmpty()

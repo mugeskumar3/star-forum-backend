@@ -23,6 +23,7 @@ import pagination from "../../utils/pagination";
 import { Training } from "../../entity/Training";
 import { CreateTrainingDto, UpdateTrainingDto } from "../../dto/admin/TrainingDto";
 import { AuthPayload } from "../../middlewares/AuthMiddleware";
+import { generateTrainingId } from "../../utils/id.generator";
 
 interface RequestWithUser extends Request {
   user: AuthPayload;
@@ -41,7 +42,7 @@ export class TrainingController {
   ) {
     try {
       const exists = await this.trainingRepository.findOneBy({
-        trainingId: body.trainingId,
+        title: body.title,
         isDelete: 0
       });
 
@@ -49,12 +50,11 @@ export class TrainingController {
         return response(
           res,
           StatusCodes.CONFLICT,
-          "Training ID already exists"
-        );
+          "Training with this title already exists");
       }
 
       const training = new Training();
-      training.trainingId = body.trainingId;
+      training.trainingId = await generateTrainingId();
       training.chapterIds = body.chapterIds.map(id => new ObjectId(id));
       training.title = body.title;
       training.description = body.description;
@@ -254,4 +254,10 @@ export class TrainingController {
       return handleErrorResponse(error, res);
     }
   }
+   @Post("/generate/id")
+    async getTrainingId(@Req() req: RequestWithUser,
+        @Res() res: Response) {
+        const id = await generateTrainingId();
+        return response(res, StatusCodes.OK, 'Training Id Created successfully', id);
+    }
 }
