@@ -109,17 +109,10 @@ export class Member {
         type: string;
     }[];
 
-    // AWARDS REPORT
-    @Column()
-    tenure: string;
-
-    @Column()
-    awardSelected: string;
-
     @Column("simple-json", { nullable: true })
     awards: {
         tenure: string;
-        award: string;
+        award: ObjectId;
     }[];
 
     // CNI CLUB MEMBER
