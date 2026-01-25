@@ -202,7 +202,7 @@ export class ChiefGuestController {
                 // -------------------------
                 {
                     $lookup: {
-                        from: "business_categories",
+                        from: "businesscategories",
                         localField: "businessCategory",
                         foreignField: "_id",
                         as: "businessCategory"
@@ -210,7 +210,7 @@ export class ChiefGuestController {
                 },
                 {
                     $unwind: {
-                        path: "$businessCategory",
+                        path: "$businesscategories",
                         preserveNullAndEmptyArrays: true
                     }
                 },
@@ -244,9 +244,12 @@ export class ChiefGuestController {
                         address: 1,
                         isActive: 1,
                         createdAt: 1,
-
-                        businessCategoryName: "$businessCategory.name",
-                        referredByName: "$referredBy.fullName"
+                        businessCategoryName: {
+                            $arrayElemAt: ["$businessCategory.name", 0]
+                        },
+                        referredByName: {
+                            $arrayElemAt: ["$referredBy.fullName", 0]
+                        }
                     }
                 },
 

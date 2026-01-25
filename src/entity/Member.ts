@@ -14,8 +14,8 @@ export class Member {
 
     @Column("simple-json", { nullable: true })
     profileImage?: {
-        imageName?: string;
-        imagePath?: string;
+        fileName?: string;
+        Path?: string;
         originalName?: string;
     };
 
