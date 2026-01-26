@@ -254,10 +254,10 @@ export class TrainingController {
       return handleErrorResponse(error, res);
     }
   }
-   @Post("/generate/id")
-    async getTrainingId(@Req() req: RequestWithUser,
-        @Res() res: Response) {
-        const id = await generateTrainingId();
-        return response(res, StatusCodes.OK, 'Training Id Created successfully', id);
-    }
+  @Post("/generate/id")
+  async getTrainingId(@Req() req: RequestWithUser,
+    @Res() res: Response) {
+    const id = await generateTrainingId();
+    return response(res, StatusCodes.OK, 'Training Id Created successfully', id);
+  }
 }
