@@ -7,7 +7,7 @@ import {
 } from "typeorm";
 import { ObjectId } from "mongodb";
 
-@Entity("login_histories")
+@Entity("loginhistories")
 export class LoginHistory {
 
   @ObjectIdColumn()
@@ -17,7 +17,7 @@ export class LoginHistory {
   userId: ObjectId;
 
   @Column()
-  userType: "ADMIN" | "ADMIN_USER";
+  userType: "ADMIN" | "ADMIN_USER" |"MEMBER" | "GUEST";
 
   @Column()
   userName: string;
@@ -26,16 +26,19 @@ export class LoginHistory {
   phoneNumber: string;
 
   @Column()
-  deviceName: string;     // Samsung SM-A125F / Apple iPhone
+  deviceName: string;
 
   @Column()
-  browserName: string;    // Android App / iOS App / Chrome 120
+  browserName: string;
 
   @Column()
   currentLocation: string;
 
   @Column()
   ipAddress: string;
+
+  @Column()
+  loginfrom:"WEB" | "MOBILE";
 
   @Column()
   status: "SUCCESS" | "FAILED";

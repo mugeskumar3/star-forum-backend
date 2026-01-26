@@ -147,6 +147,7 @@ export class AuthController {
                 browserName,
                 currentLocation,
                 ipAddress,
+                loginfrom:"WEB",
                 status: "SUCCESS",
                 loginAt: new Date()
             });
