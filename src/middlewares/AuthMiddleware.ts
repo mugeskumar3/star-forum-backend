@@ -4,7 +4,7 @@ import {
     ForbiddenError
 } from "routing-controllers";
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "../config/jwt";
 
 export interface AuthPayload {
@@ -32,8 +32,17 @@ export class AuthMiddleware implements ExpressMiddlewareInterface {
             if (!token) {
                 throw new UnauthorizedError("Token missing");
             }
-            const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
-            (req as any).user = decoded;
+            const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+
+            if (!decoded || typeof decoded !== "object" || !decoded.id) {
+                throw new Error("Invalid token payload");
+            }
+
+            (req as any).user = {
+                ...decoded,
+                userId: decoded.id
+            };
+
             next();
         } catch (error: any) {
             throw new UnauthorizedError("Invalid or expired token");

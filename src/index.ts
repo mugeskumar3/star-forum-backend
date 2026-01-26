@@ -5,11 +5,13 @@ import { useExpressServer } from "routing-controllers";
 import { AppDataSource } from "./data-source";
 import fileUpload from "express-fileupload";
 import { seedDefaultAdmin } from "./seed/admin";
+import { seedDefaultModules } from "./seed/modules";
 
 AppDataSource.initialize()
   .then(async () => {
     console.log("✅ Database connected");
     await seedDefaultAdmin();
+    await seedDefaultModules();
 
     const app = express();
     app.use("/public", express.static("public"));
