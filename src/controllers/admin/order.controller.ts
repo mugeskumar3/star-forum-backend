@@ -312,7 +312,7 @@ export class OrderController {
                         regionName: "$region.region",
                         chapterName: "$chapter.chapterName",
                         memberName: "$members.fullName",
-                        mobileNumber: "$members.mobileNumber",
+                        phoneNumber: "$members.phoneNumber",
                         status: 1,
                         paymentStatus: 1,
                         grantTotal: 1,
@@ -445,7 +445,7 @@ export class OrderController {
                         regionName: { $first: "$region.region" },
                         chapterName: { $first: "$chapter.chapterName" },
                         memberName: { $first: "$members.fullName" },
-                        contactNumber: { $first: "$members.mobileNumber" },
+                        contactNumber: { $first: "$members.phoneNumber" },
 
                         products: {
                             $push: {
