@@ -289,13 +289,15 @@ export class OrderController {
                     $group: {
                         _id: "$_id",
                         orderId: { $first: "$orderId" },
+                        status: { $first: "$status" },
+                        grantTotal: { $first: "$grantTotal" },
                         createdAt: { $first: "$createdAt" },
                         zone: { $first: "$zone" },
                         region: { $first: "$region" },
                         chapter: { $first: "$chapter" },
                         members: { $first: "$members" },
                         totalQty: { $first: "$totalQty" },
-
+                        paymentStatus: { $first: '$paymentStatus' },
                         productNames: { $push: "$productDetails.productName" }
                     }
                 },
