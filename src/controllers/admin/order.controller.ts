@@ -14,7 +14,7 @@ import { ObjectId } from "mongodb";
 import { StatusCodes } from "http-status-codes";
 import { AuthMiddleware, AuthPayload } from "../../middlewares/AuthMiddleware";
 import { AppDataSource } from "../../data-source";
-import { Order } from "../../entity/Order";
+import { Order, OrderStatus } from "../../entity/Order";
 import { CreateOrderDto } from "../../dto/admin/Order.dto";
 import { handleErrorResponse, pagination, response } from "../../utils";
 import { generateOrderId } from "../../utils/id.generator";
@@ -48,13 +48,20 @@ export class OrderController {
             order.chapterId = new ObjectId(body.chapterId);
             order.memberId = new ObjectId(body.memberId);
             order.grantTotal = body.grantTotal;
-            if (body.products) order.products = body.products;
+            if (body.products?.length) {
+                order.products = body.products.map(p => ({
+                    ...p,
+                    productId: new ObjectId(p.productId as any)
+                }));
+            }
+
             order.orderId = await generateOrderId();
 
             order.isActive = 1;
             order.isDelete = 0;
             order.createdBy = new ObjectId(req.user.userId);
             order.createdAt = new Date();
+            order.status = OrderStatus.PENDING;
 
             await this.orderRepository.save(order);
 
@@ -103,7 +110,13 @@ export class OrderController {
             if (body.regionId) order.regionId = new ObjectId(body.regionId);
             if (body.chapterId) order.chapterId = new ObjectId(body.chapterId);
             if (body.memberId) order.memberId = new ObjectId(body.memberId);
-            if (body.products) order.products = body.products;
+            if (body.products?.length) {
+                order.products = body.products.map(p => ({
+                    ...p,
+                    productId: new ObjectId(p.productId as any)
+                }));
+            }
+
             order.grantTotal = body.grantTotal;
 
             order.updatedBy = new ObjectId(req.user.userId);
@@ -233,7 +246,9 @@ export class OrderController {
                         regionName: { $ifNull: ["$region.region", ""] },
                         chapterName: { $ifNull: ["$chapter.chapterName", ""] },
                         memberName: { $ifNull: ["$members.fullName", ""] },
-                        productName: { $ifNull: ["$product.productName", ""] }
+                        productName: { $ifNull: ["$product.productName", ""] },
+                        mobileNumber: { $ifNull: ["$members.mobileNumber", ""] },
+
                     }
                 },
 
@@ -279,15 +294,92 @@ export class OrderController {
             }
 
             const pipeline = [
+                { $match: { _id: new ObjectId(id), isDelete: 0 } },
+
+                // -------------------------
+                // LOOKUPS (NO CONVERSION NEEDED – IDs ARE ObjectId)
+                // -------------------------
                 {
-                    $match: {
-                        _id: new ObjectId(id),
-                        isDelete: 0
+                    $lookup: {
+                        from: "zones",
+                        localField: "zoneId",
+                        foreignField: "_id",
+                        as: "zone"
                     }
                 },
+                { $unwind: { path: "$zone", preserveNullAndEmptyArrays: true } },
+
                 {
-                    $project: {
-                        isDelete: 0
+                    $lookup: {
+                        from: "regions",
+                        localField: "regionId",
+                        foreignField: "_id",
+                        as: "region"
+                    }
+                },
+                { $unwind: { path: "$region", preserveNullAndEmptyArrays: true } },
+
+                {
+                    $lookup: {
+                        from: "chapters",
+                        localField: "chapterId",
+                        foreignField: "_id",
+                        as: "chapter"
+                    }
+                },
+                { $unwind: { path: "$chapter", preserveNullAndEmptyArrays: true } },
+
+                {
+                    $lookup: {
+                        from: "member", // ⚠️ plural
+                        localField: "memberId",
+                        foreignField: "_id",
+                        as: "members"
+                    }
+                },
+                { $unwind: { path: "$members", preserveNullAndEmptyArrays: true } },
+
+                // -------------------------
+                // 🔥 UNWIND PRODUCTS
+                // -------------------------
+                { $unwind: "$products" },
+
+                {
+                    $lookup: {
+                        from: "products",
+                        localField: "products.productId",
+                        foreignField: "_id",
+                        as: "product"
+                    }
+                },
+                { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+
+                // -------------------------
+                // 🔥 GROUP BACK PRODUCTS
+                // -------------------------
+                {
+                    $group: {
+                        _id: "$_id",
+                        orderId: { $first: "$orderId" },
+                        orderDate: { $first: "$createdAt" },
+                        status: { $first: "$status" },
+                        grantTotal: { $first: "$grantTotal" },
+
+                        zoneName: { $first: "$zone.name" },
+                        regionName: { $first: "$region.region" },
+                        chapterName: { $first: "$chapter.chapterName" },
+                        memberName: { $first: "$members.fullName" },
+
+                        products: {
+                            $push: {
+                                productId: "$products.productId",
+                                productName: "$product.productName",
+                                qty: "$products.qty",
+                                price: "$products.price",
+                                amount: "$products.amount",
+                                total: "$products.total"
+                            }
+                        }
                     }
                 }
             ];
