@@ -40,7 +40,7 @@ export class Chapter {
     @Column()
     meetingType: MeetingType;
 
-    @Column(() => ObjectId)
+    @Column()
     badgeIds?: ObjectId[];
 
     @Column({ default: 1 })
@@ -49,10 +49,10 @@ export class Chapter {
     @Column({ default: 0 })
     isDelete: number;
 
-    @Column(() => ObjectId)
+    @Column()
     createdBy: ObjectId;
 
-    @Column(() => ObjectId)
+    @Column()
     updatedBy: ObjectId;
 
     @CreateDateColumn()

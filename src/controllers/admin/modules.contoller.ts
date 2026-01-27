@@ -38,7 +38,6 @@ async listModules(
 
     const dataPipeline: any[] = [
       { $match: match },
-      { $sort: { createdAt: -1 } }
     ];
 
     if (limit > 0) {

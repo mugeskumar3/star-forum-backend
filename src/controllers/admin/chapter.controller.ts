@@ -96,13 +96,9 @@ async getAllChapters(
       match.rdId = new ObjectId(query.rdId);
     }
 
-    // =========================
-    // MAIN PIPELINE (NO PAGINATION HERE)
-    // =========================
     const pipeline: any[] = [
       { $match: match },
 
-      // -------- ZONE --------
       {
         $lookup: {
           from: "zones",
@@ -116,7 +112,6 @@ async getAllChapters(
       },
       { $unwind: { path: "$zone", preserveNullAndEmptyArrays: true } },
 
-      // -------- REGION --------
       {
         $lookup: {
           from: "regions",
@@ -130,7 +125,6 @@ async getAllChapters(
       },
       { $unwind: { path: "$region", preserveNullAndEmptyArrays: true } },
 
-      // -------- ED --------
       {
         $lookup: {
           from: "adminusers",
@@ -144,7 +138,6 @@ async getAllChapters(
       },
       { $unwind: { path: "$ed", preserveNullAndEmptyArrays: true } },
 
-      // -------- RD --------
       {
         $lookup: {
           from: "adminusers",
@@ -158,7 +151,6 @@ async getAllChapters(
       },
       { $unwind: { path: "$rd", preserveNullAndEmptyArrays: true } },
 
-      // -------- CREATED BY --------
       {
         $lookup: {
           from: "adminusers",
@@ -172,7 +164,6 @@ async getAllChapters(
       },
       { $unwind: { path: "$createdByUser", preserveNullAndEmptyArrays: true } },
 
-      // -------- UPDATED BY --------
       {
         $lookup: {
           from: "adminusers",
@@ -186,7 +177,6 @@ async getAllChapters(
       },
       { $unwind: { path: "$updatedByUser", preserveNullAndEmptyArrays: true } },
 
-      // -------- FLATTEN FIELDS --------
       {
         $addFields: {
           zoneName: "$zone.name",
@@ -201,9 +191,6 @@ async getAllChapters(
       }
     ];
 
-    // =========================
-    // SEARCH (AFTER LOOKUPS)
-    // =========================
     if (search) {
       pipeline.push({
         $match: {
@@ -218,14 +205,8 @@ async getAllChapters(
       });
     }
 
-    // =========================
-    // SORT (BEFORE FACET)
-    // =========================
     pipeline.push({ $sort: { createdAt: -1 } });
 
-    // =========================
-    // FACET (DATA + COUNT)
-    // =========================
     pipeline.push({
       $facet: {
         data: [
@@ -262,9 +243,6 @@ async getAllChapters(
       }
     });
 
-    // =========================
-    // EXECUTE
-    // =========================
     const result = await this.chapterRepository
       .aggregate(pipeline)
       .toArray();

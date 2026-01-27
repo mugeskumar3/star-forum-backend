@@ -53,3 +53,8 @@ export class UpdateBadgeDto {
     @Type(() => Number)
     isDelete?: number;
 }
+export class AssignBadgeDto {
+  assignTo: "CHAPTER" | "MEMBER";
+  assignToId: string;
+  badgeId: string;
+}

@@ -22,7 +22,10 @@ import handleErrorResponse from "../../utils/commonFunction";
 import pagination from "../../utils/pagination";
 import { AuthPayload } from "../../middlewares/AuthMiddleware";
 import { Badge } from "../../entity/Badge";
-import { CreateBadgeDto, UpdateBadgeDto } from "../../dto/admin/badge.dto";
+import { AssignBadgeDto, CreateBadgeDto, UpdateBadgeDto } from "../../dto/admin/badge.dto";
+import { BadgeHistory } from "../../entity/BadgeHistory";
+import { Member } from "../../entity/Member";
+import { Chapter } from "../../entity/Chapter";
 
 interface RequestWithUser extends Request {
   user: AuthPayload;
@@ -242,4 +245,84 @@ export class BadgeController {
       return handleErrorResponse(error, res);
     }
   }
+  @Post("/assign")
+  async assignBadge(
+    @Body() body: AssignBadgeDto,
+    @Req() req: RequestWithUser,
+    @Res() res: Response
+  ) {
+    try {
+      const { assignTo, assignToId, badgeId } = body;
+
+      if (!assignTo || !assignToId || !badgeId) {
+        return response(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "assignTo, assignToId and badgeId are required"
+        );
+      }
+
+      const userId = new ObjectId(req.user.userId);
+      const badgeObjectId = new ObjectId(badgeId);
+      const assignToObjectId = new ObjectId(assignToId);
+
+      let repository: any;
+
+      switch (assignTo) {
+        case "CHAPTER":
+          repository = AppDataSource.getMongoRepository(Chapter);
+          break;
+
+        case "MEMBER":
+          repository = AppDataSource.getMongoRepository(Member);
+          break;
+
+        default:
+          return response(res, StatusCodes.BAD_REQUEST, "Invalid assignTo value");
+      }
+
+      const target = await repository.findOneBy({
+        _id: assignToObjectId,
+        isDelete: 0
+      });
+
+      if (!target) {
+        return response(res, StatusCodes.NOT_FOUND, `${assignTo} not found`);
+      }
+
+      if (target.badgeIds?.some((id: ObjectId) => id.equals(badgeObjectId))) {
+        return response(
+          res,
+          StatusCodes.CONFLICT,
+          "Badge already assigned"
+        );
+      }
+
+      await repository.updateOne(
+        { _id: assignToObjectId },
+        {
+          $addToSet: { badgeIds: badgeObjectId },
+          $set: { updatedBy: userId }
+        }
+      );
+
+      const historyRepo = AppDataSource.getMongoRepository(BadgeHistory);
+      await historyRepo.save({
+        assignTo,
+        assignToId: assignToObjectId,
+        badgeId: badgeObjectId,
+        action: "ASSIGNED",
+        createdBy: userId
+      });
+
+      return response(
+        res,
+        StatusCodes.OK,
+        "Badge assigned successfully"
+      );
+    } catch (error) {
+      return handleErrorResponse(error, res);
+    }
+  }
+
 }

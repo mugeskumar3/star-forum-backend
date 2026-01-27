@@ -139,7 +139,5 @@ export class Member {
     updatedBy: ObjectId;
 
     @Column()
-    badge: {
-        name: string;
-    }[];
+    badgeIds: ObjectId[];
 }
