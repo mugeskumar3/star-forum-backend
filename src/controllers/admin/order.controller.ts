@@ -247,7 +247,7 @@ export class OrderController {
 
                 {
                     $lookup: {
-                        phoneNumberers",phoneNumber
+                        from: "chapters",
                         localField: "chapterIdObj",
                         foreignField: "_id",
                         as: "chapter"
@@ -310,7 +310,7 @@ export class OrderController {
                         regionName: "$region.region",
                         chapterName: "$chapter.chapterName",
                         memberName: "$members.fullName",
-                        mobileNumber: "$members.mobileNumber",
+                        phoneNumber: "$members.phoneNumber",
 
                         // Pick first productName (same as your sample output)
                         productName: {
@@ -440,7 +440,7 @@ export class OrderController {
                         regionName: { $first: "$region.region" },
                         chapterName: { $first: "$chapter.chapterName" },
                         memberName: { $first: "$members.fullName" },
-                        contactNumber: { $first: "$members.mobileNumber" },
+                        contactNumber: { $first: "$members.phoneNumber" },
 
                         products: {
                             $push: {
