@@ -107,6 +107,9 @@ export class OneToOneMeetingController {
             if (query.chapterType) {
                 match.chapterType = query.chapterType;
             }
+            if (query.initiatedBy) {
+                match.initiatedBy = query.initiatedBy;
+            }
 
             // 🔹 Filter: date range
             if (query.fromDate || query.toDate) {
@@ -133,6 +136,16 @@ export class OneToOneMeetingController {
                 },
 
                 { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "member",
+                        localField: "createdBy",
+                        foreignField: "_id",
+                        as: "createdByDetails"
+                    }
+                },
+
+                { $unwind: { path: "$createdByDetails", preserveNullAndEmptyArrays: true } },
 
                 {
                     $project: {
@@ -150,6 +163,15 @@ export class OneToOneMeetingController {
                             name: "$member.fullName",
                             mobile: "$member.phoneNumber",
                             email: "$member.email",
+                            profileImage: '$member.profileImage'
+
+                        },
+                        intiatedByDetails: {
+                            _id: "$createdByDetails._id",
+                            name: "$createdByDetails.fullName",
+                            mobile: "$createdByDetails.phoneNumber",
+                            email: "$createdByDetails.email",
+                            profileImage: '$createdByDetails.profileImage'
                         }
                     }
                 },

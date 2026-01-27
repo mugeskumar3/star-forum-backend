@@ -112,13 +112,27 @@ export class CommonController {
 
             if (params.chapterId) {
                 match.chapter = new ObjectId(params.chapterId)
-            } 
+            }
             else {
                 match.chapter = loginMember.chapter
             }
+
+            if (params.phoneNumber) {
+                match.$or = [
+                    { phoneNumber: { $regex: params.phoneNumber, $options: "i" } }
+                ];
+            }
             const pipeline: any[] = [
                 { $match: match },
-                { $sort: { createdAt: -1 } }
+                { $sort: { createdAt: -1 } },
+                {
+                    $project: {
+                        _id: 1,
+                        fullName: 1,
+                        profileImage: 1,
+                        membershipId: 1,
+                    }
+                }
             ];
 
             if (limit > 0) {
