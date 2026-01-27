@@ -24,7 +24,7 @@ export class Member {
     fullName: string;
 
     @Column()
-    mobileNumber: string;
+    phoneNumber: string;
 
     @Column()
     email: string;
