@@ -31,7 +31,7 @@ export class CommonController {
     // =========================
     // ✅ Chapters List (AGGREGATION + MEMBER LOOKUP)
     // =========================
-    @Get("/list")
+    @Get("/chapter-list")
     async listChapters(
         @QueryParams() query: any,
         @Res() res: Response
