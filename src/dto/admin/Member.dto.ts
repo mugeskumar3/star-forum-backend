@@ -93,7 +93,7 @@ export class CreateMemberDto {
 
     @IsString()
     @IsNotEmpty()
-    mobileNumber: string;
+    phoneNumber: string;
 
     @IsEmail()
     email: string;
@@ -209,7 +209,7 @@ export class UpdateMemberDto {
 
     @IsOptional()
     @IsString()
-    mobileNumber?: string;
+    phoneNumber?: string;
 
     @IsOptional()
     @IsEmail()

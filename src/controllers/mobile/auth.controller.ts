@@ -57,7 +57,7 @@ export class AuthController {
             const member = await this.memberRepo.findOne({
                 isActive: 1,
                 isDelete: 0,
-                mobileNumber: phoneNumber
+                phoneNumber: phoneNumber
             } as any);
 
             if (!member) {
@@ -111,7 +111,7 @@ export class AuthController {
             if (member instanceof Member) {
                 payload = {
                     id: member.id.toString(),
-                    phoneNumber: member.mobileNumber,
+                    phoneNumber: member.phoneNumber,
                     // role: member.role,
                     userType: "MEMBER"
                 };
@@ -121,7 +121,7 @@ export class AuthController {
                 userId: member.id,
                 userType: payload.userType,
                 userName: member.fullName,
-                phoneNumber: member.mobileNumber,
+                phoneNumber: member.phoneNumber,
                 deviceName,
                 browserName,
                 currentLocation,
@@ -141,7 +141,7 @@ export class AuthController {
                 user: {
                     id: member.id,
                     name: member.fullName,
-                    phoneNumber: member.mobileNumber,
+                    phoneNumber: member.phoneNumber,
                     companyName: member.companyName
                 }
             });

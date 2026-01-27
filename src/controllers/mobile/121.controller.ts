@@ -148,7 +148,7 @@ export class OneToOneMeetingController {
                         meetingWith: {
                             _id: "$member._id",
                             name: "$member.fullName",
-                            mobile: "$member.mobileNumber",
+                            mobile: "$member.phoneNumber",
                             email: "$member.email",
                         }
                     }

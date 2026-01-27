@@ -51,7 +51,7 @@ export class MemberController {
 
             memberData.profileImage = body.profileImage || undefined;
             memberData.fullName = body.fullName;
-            memberData.mobileNumber = body.mobileNumber;
+            memberData.phoneNumber = body.phoneNumber;
             memberData.email = body.email;
             memberData.companyName = body.companyName;
 
@@ -172,7 +172,7 @@ export class MemberController {
             const updatableFields = [
                 "profileImage",
                 "fullName",
-                "mobileNumber",
+                "phoneNumber",
                 "email",
                 "companyName",
                 "membershipId",
@@ -248,7 +248,7 @@ export class MemberController {
                 match.$or = [
                     { fullName: { $regex: search, $options: "i" } },
                     { email: { $regex: search, $options: "i" } },
-                    { mobileNumber: { $regex: search, $options: "i" } }
+                    { phoneNumber: { $regex: search, $options: "i" } }
                 ];
             }
 
