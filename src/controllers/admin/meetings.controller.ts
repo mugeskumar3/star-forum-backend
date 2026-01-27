@@ -43,41 +43,25 @@ export class MeetingController {
         try {
 
             const meeting = new Meeting();
-
-            // --------------------
-            // BASIC INFO
-            // --------------------
             meeting.meetingTopic = body.meetingTopic;
             meeting.meetingFee = body.meetingFee;
             meeting.visitorFee = body.visitorFee;
             meeting.hotelName = body.hotelName;
 
-            // --------------------
-            // CHAPTERS
-            // --------------------
             meeting.chapters = body.chapters.map(
                 (id) => new ObjectId(id)
             );
 
-            // --------------------
-            // DATE & TIME
-            // --------------------
             meeting.startDateTime = new Date(body.startDateTime);
             meeting.endDateTime = new Date(body.endDateTime);
             meeting.latePunchTime = new Date(body.latePunchTime);
 
-            // --------------------
-            // LOCATION (OBJECT)
-            // --------------------
             meeting.location = {
                 name: body.location.name,
                 latitude: body.location.latitude,
                 longitude: body.location.longitude
             };
 
-            // --------------------
-            // SYSTEM FIELDS
-            // --------------------
             meeting.isActive = 1;
             meeting.isDelete = 0;
             meeting.createdBy = new ObjectId(req.user.userId);
@@ -102,9 +86,6 @@ export class MeetingController {
     }
 
 
-    // --------------------------------------------------
-    // EDIT MEETING
-    // --------------------------------------------------
     @Put("/edit/:id")
     async editMeeting(
         @Param("id") id: string,
@@ -135,9 +116,6 @@ export class MeetingController {
                 );
             }
 
-            // --------------------
-            // UPDATE FIELDS (IF SENT)
-            // --------------------
             if (body.meetingTopic)
                 meeting.meetingTopic = body.meetingTopic;
 
@@ -173,9 +151,6 @@ export class MeetingController {
                 };
             }
 
-            // --------------------
-            // SYSTEM FIELDS
-            // --------------------
             meeting.updatedBy = new ObjectId(req.user.userId);
             meeting.updatedAt = new Date();
 
@@ -196,9 +171,7 @@ export class MeetingController {
             );
         }
     }
-    // --------------------------------------------------
-    // LIST MEETINGS
-    // --------------------------------------------------
+
     @Get("/list")
     async listMeetings(
         @Req() req: RequestWithUser,
@@ -212,12 +185,8 @@ export class MeetingController {
             const chapter = req.query.chapter?.toString();
             const isActive = req.query.isActive?.toString();
 
-            // --------------------------------------------------
-            // MATCH STAGE
-            // --------------------------------------------------
             const match: any = { isDelete: 0 };
 
-            // SEARCH (topic / hotel / location name)
             if (search) {
                 match.$or = [
                     { meetingTopic: { $regex: search, $options: "i" } },
@@ -226,19 +195,14 @@ export class MeetingController {
                 ];
             }
 
-            // FILTER BY CHAPTER (array field)
             if (chapter) {
                 match.chapters = { $in: [new ObjectId(chapter)] };
             }
 
-            // FILTER BY STATUS
             if (isActive !== undefined) {
                 match.isActive = Number(isActive);
             }
 
-            // --------------------------------------------------
-            // AGGREGATION PIPELINE
-            // --------------------------------------------------
             const pipeline = [
                 { $match: match },
 
@@ -280,9 +244,7 @@ export class MeetingController {
             return handleErrorResponse(error, res);
         }
     }
-    // --------------------------------------------------
-    // MEETING DETAILS
-    // --------------------------------------------------
+
     @Get("/details/:id")
     async meetingDetails(
         @Param("id") id: string,
@@ -343,9 +305,6 @@ export class MeetingController {
             );
         }
     }
-    // --------------------------------------------------
-    // DELETE MEETING (SOFT DELETE)
-    // --------------------------------------------------
     @Delete("/delete/:id")
     async deleteMeeting(
         @Param("id") id: string,

@@ -74,9 +74,6 @@ async getAllChapters(
     const limit = Number(query.limit ?? 10);
     const search = query.search?.trim();
 
-    // =========================
-    // BASE MATCH (FAST FILTERS)
-    // =========================
     const match: any = { isDelete: 0 };
 
     if (query.isActive !== undefined) {

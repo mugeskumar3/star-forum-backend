@@ -31,9 +31,6 @@ export class ChiefGuestController {
     private chiefGuestRepository =
         AppDataSource.getMongoRepository(ChiefGuest);
 
-    // --------------------------------------------------
-    // CREATE CHIEF GUEST
-    // --------------------------------------------------
     @Post("/create")
     async createChiefGuest(
         @Req() req: RequestWithUser,
@@ -75,9 +72,7 @@ export class ChiefGuestController {
             );
         }
     }
-    // --------------------------------------------------
-    // UPDATE CHIEF GUEST
-    // --------------------------------------------------
+
     @Put("/edit/:id")
     async editChiefGuest(
         @Param("id") id: string,
@@ -102,9 +97,6 @@ export class ChiefGuestController {
                 );
             }
 
-            // -----------------------------
-            // UPDATE FIELDS (ONLY IF SENT)
-            // -----------------------------
             if (body.chiefGuestName)
                 chiefGuest.chiefGuestName = body.chiefGuestName;
 
@@ -154,9 +146,6 @@ export class ChiefGuestController {
         }
     }
 
-    // --------------------------------------------------
-    // LIST CHIEF GUESTS
-    // --------------------------------------------------
     @Get("/list")
     async listChiefGuests(
         @Req() req: RequestWithUser,
@@ -171,9 +160,6 @@ export class ChiefGuestController {
             const isActive = req.query.isActive?.toString();
             const search = req.query.search?.toString();
 
-            // -------------------------
-            // MATCH
-            // -------------------------
             const match: any = { isDelete: 0 };
 
             if (businessCategory)
@@ -197,9 +183,6 @@ export class ChiefGuestController {
             const pipeline = [
                 { $match: match },
 
-                // -------------------------
-                // LOOKUPS
-                // -------------------------
                 {
                     $lookup: {
                         from: "businesscategories",
@@ -230,9 +213,6 @@ export class ChiefGuestController {
                     }
                 },
 
-                // -------------------------
-                // SHAPE RESPONSE
-                // -------------------------
                 {
                     $project: {
                         _id: 1,
@@ -255,9 +235,6 @@ export class ChiefGuestController {
 
                 { $sort: { createdAt: -1 } },
 
-                // -------------------------
-                // PAGINATION
-                // -------------------------
                 {
                     $facet: {
                         data: [
@@ -281,9 +258,7 @@ export class ChiefGuestController {
             return handleErrorResponse(error, res);
         }
     }
-    // --------------------------------------------------
-    // CHIEF GUEST DETAILS
-    // --------------------------------------------------
+    
     @Get("/details/:id")
     async chiefGuestDetails(
         @Param("id") id: string,

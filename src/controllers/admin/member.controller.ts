@@ -140,9 +140,6 @@ export class MemberController {
         @Res() res: Response
     ) {
         try {
-            // -----------------------------------------------------
-            // CHECK IF MEMBER EXISTS
-            // -----------------------------------------------------
             const member = await this.memberRepository.findOneBy({
                 _id: new ObjectId(id),
                 isDelete: 0
@@ -156,9 +153,6 @@ export class MemberController {
                 );
             }
 
-            // -----------------------------------------------------
-            // CHECK FOR EMAIL DUPLICATE (IF EMAIL IS PROVIDED)
-            // -----------------------------------------------------
             if (body.email) {
                 const emailExists = await this.memberRepository.findOneBy({
                     email: body.email,
@@ -175,9 +169,6 @@ export class MemberController {
                 }
             }
 
-            // -----------------------------------------------------
-            // UPDATE BASIC FIELDS
-            // -----------------------------------------------------
             const updatableFields = [
                 "profileImage",
                 "fullName",
@@ -212,17 +203,11 @@ export class MemberController {
                 }
             });
 
-            // -----------------------------------------------------
-            // UPDATE OBJECT-ID FIELDS
-            // -----------------------------------------------------
             if (body.region) member.region = new ObjectId(body.region);
             if (body.chapter) member.chapter = new ObjectId(body.chapter);
             if (body.businessCategory) member.businessCategory = new ObjectId(body.businessCategory);
             if (body.referredBy) member.referredBy = new ObjectId(body.referredBy);
 
-            // -----------------------------------------------------
-            // UPDATE NESTED OFFICE ADDRESS
-            // -----------------------------------------------------
             if (body.officeAddress) {
                 member.officeAddress = {
                     ...member.officeAddress,   // keep existing values
@@ -230,14 +215,8 @@ export class MemberController {
                 };
             }
 
-            // -----------------------------------------------------
-            // META FIELDS
-            // -----------------------------------------------------
             member.updatedBy = new ObjectId(req.user.userId);
 
-            // -----------------------------------------------------
-            // SAVE UPDATE
-            // -----------------------------------------------------
             const result = await this.memberRepository.save(member);
 
             return response(
@@ -263,9 +242,6 @@ export class MemberController {
             const region = req.query.region?.toString();
             const chapter = req.query.chapter?.toString();
 
-            // -----------------------------------------------------
-            // MATCH STAGE
-            // -----------------------------------------------------
             const match: any = { isDelete: 0 };
 
             if (search) {
@@ -279,9 +255,6 @@ export class MemberController {
             if (region) match.region = new ObjectId(region);
             if (chapter) match.chapter = new ObjectId(chapter);
 
-            // -----------------------------------------------------
-            // AGGREGATION PIPELINE
-            // -----------------------------------------------------
             const pipeline = [
                 { $match: match },
                 { $sort: { createdAt: -1 } },

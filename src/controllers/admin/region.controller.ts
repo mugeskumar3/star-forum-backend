@@ -73,10 +73,16 @@ export class RegionController {
   }
 
   @Get("/")
-  async getAllRegions(@QueryParams() query: any, @Res() res: Response) {
+  async getAllRegions(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
     try {
-      const page = Number(query.page ?? 0);
-      const limit = Number(query.limit ?? 0);
+      const page = Math.max(Number(query.page) || 0, 0);
+      const limit =
+        query.limit !== undefined
+          ? Math.max(Number(query.limit), 1)
+          : 0;
 
       const match: any = { isDelete: 0 };
 
@@ -93,7 +99,7 @@ export class RegionController {
       }
 
       if (query.rdId) {
-        match.rdIds = new ObjectId(query.rdId);
+        match.rdIds = { $in: [new ObjectId(query.rdId)] };
       }
 
       const pipeline: any[] = [
@@ -104,22 +110,40 @@ export class RegionController {
             let: { zoneId: "$zoneId" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$zoneId"] } } },
-              { $project: { _id: 1, name: 1, country: 1, state: 1 } }
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  country: 1,
+                  state: 1
+                }
+              }
             ],
             as: "zone"
           }
         },
         { $unwind: { path: "$zone", preserveNullAndEmptyArrays: true } },
+
         ...(query.zoneName
-          ? [{ $match: { "zone.name": { $regex: query.zoneName, $options: "i" } } }]
+          ? [{
+            $match: {
+              "zone.name": { $regex: query.zoneName, $options: "i" }
+            }
+          }]
           : []),
+
         {
           $lookup: {
             from: "adminusers",
             let: { edId: "$edId" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$edId"] } } },
-              { $project: { _id: 1, name: 1 } }
+              {
+                $project: {
+                  _id: 1,
+                  name: 1
+                }
+              }
             ],
             as: "ed"
           }
@@ -131,7 +155,12 @@ export class RegionController {
             let: { rdIds: "$rdIds" },
             pipeline: [
               { $match: { $expr: { $in: ["$_id", "$$rdIds"] } } },
-              { $project: { _id: 1, name: 1 } }
+              {
+                $project: {
+                  _id: 1,
+                  name: 1
+                }
+              }
             ],
             as: "rds"
           }
@@ -142,51 +171,71 @@ export class RegionController {
             let: { createdBy: "$createdBy" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$createdBy"] } } },
-              { $project: { _id: 1, name: 1 } }
+              {
+                $project: {
+                  _id: 1,
+                  name: 1
+                }
+              }
             ],
             as: "createdByUser"
           }
         },
         { $unwind: { path: "$createdByUser", preserveNullAndEmptyArrays: true } },
+
+        { $sort: { createdAt: -1 } },
+
         {
-          $project: {
-            _id: 1,
-            region: 1,
-            zoneId: "$zone._id",
-            zoneName: "$zone.name",
-            country: "$zone.country",
-            state: "$zone.state",
-            edId: "$ed._id",
-            edName: "$ed.name",
-            rdIds: "$rds._id",
-            rdNames: "$rds.name",
-            createdBy: "$createdByUser._id",
-            createdByName: "$createdByUser.name",
-            isActive: 1,
-            createdAt: 1
+          $facet: {
+            data: [
+              ...(limit > 0
+                ? [{ $skip: page * limit }, { $limit: limit }]
+                : []),
+              {
+                $project: {
+                  _id: 1,
+                  region: 1,
+
+                  zoneId: "$zone._id",
+                  zoneName: "$zone.name",
+                  country: "$zone.country",
+                  state: "$zone.state",
+
+                  edId: "$ed._id",
+                  edName: "$ed.name",
+
+                  rdIds: "$rds._id",
+                  rdNames: "$rds.name",
+
+                  createdBy: "$createdByUser._id",
+                  createdByName: "$createdByUser.name",
+
+                  isActive: 1,
+                  createdAt: 1
+                }
+              }
+            ],
+            meta: [
+              { $count: "total" }
+            ]
           }
         }
       ];
 
-      if (limit > 0) {
-        pipeline.push(
-          { $skip: page * limit },
-          { $limit: limit }
-        );
-      }
-
-      const regions = await this.regionRepository
+      const result = await this.regionRepository
         .aggregate(pipeline)
         .toArray();
 
-      const totalCount = await this.regionRepository.countDocuments(match);
+      const data = result[0]?.data || [];
+      const total = result[0]?.meta[0]?.total || 0;
 
-      return pagination(totalCount, regions, limit, page, res);
+      return pagination(total, data, limit, page, res);
 
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
+
 
 
   @Get("/:id")
@@ -197,7 +246,8 @@ export class RegionController {
           $match: {
             _id: new ObjectId(id),
             isDelete: 0
-          }
+          },
+
         },
 
         {
@@ -269,7 +319,8 @@ export class RegionController {
             isActive: 1,
             createdAt: 1,
             updatedAt: 1
-          }
+          },
+
         }
       ];
       const result = await this.regionRepository
