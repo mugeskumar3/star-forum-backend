@@ -47,6 +47,7 @@ export class OrderController {
             order.regionId = new ObjectId(body.regionId);
             order.chapterId = new ObjectId(body.chapterId);
             order.memberId = new ObjectId(body.memberId);
+            order.grantTotal = body.grantTotal;
             if (body.products) order.products = body.products;
             order.orderId = await generateOrderId();
 
@@ -103,6 +104,7 @@ export class OrderController {
             if (body.chapterId) order.chapterId = new ObjectId(body.chapterId);
             if (body.memberId) order.memberId = new ObjectId(body.memberId);
             if (body.products) order.products = body.products;
+            order.grantTotal = body.grantTotal;
 
             order.updatedBy = new ObjectId(req.user.userId);
             order.updatedAt = new Date();
@@ -152,13 +154,23 @@ export class OrderController {
             const pipeline = [
                 { $match: match },
 
+                // 🔹 Convert string IDs → ObjectId (VERY IMPORTANT)
+                {
+                    $addFields: {
+                        zoneIdObj: { $toObjectId: "$zoneId" },
+                        regionIdObj: { $toObjectId: "$regionId" },
+                        chapterIdObj: { $toObjectId: "$chapterId" },
+                        memberIdObj: { $toObjectId: "$memberId" },
+                    }
+                },
+
                 // -------------------------
                 // LOOKUPS
                 // -------------------------
                 {
                     $lookup: {
                         from: "zones",
-                        localField: "zoneId",
+                        localField: "zoneIdObj",
                         foreignField: "_id",
                         as: "zone"
                     }
@@ -168,7 +180,7 @@ export class OrderController {
                 {
                     $lookup: {
                         from: "regions",
-                        localField: "regionId",
+                        localField: "regionIdObj",
                         foreignField: "_id",
                         as: "region"
                     }
@@ -178,7 +190,7 @@ export class OrderController {
                 {
                     $lookup: {
                         from: "chapters",
-                        localField: "chapterId",
+                        localField: "chapterIdObj",
                         foreignField: "_id",
                         as: "chapter"
                     }
@@ -187,18 +199,18 @@ export class OrderController {
 
                 {
                     $lookup: {
-                        from: "members",
-                        localField: "memberId",
+                        from: "member", // ✅ FIXED
+                        localField: "memberIdObj",
                         foreignField: "_id",
-                        as: "member"
+                        as: "members"
                     }
                 },
-                { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
+                { $unwind: { path: "$members", preserveNullAndEmptyArrays: true } },
 
                 {
                     $lookup: {
                         from: "products",
-                        localField: "productId",
+                        localField: "products.productId",
                         foreignField: "_id",
                         as: "product"
                     }
@@ -206,26 +218,27 @@ export class OrderController {
                 { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
 
                 // -------------------------
-                // SHAPE RESPONSE FOR UI
+                // PROJECTION
                 // -------------------------
                 {
                     $project: {
                         _id: 1,
-                        orderId: "$_id",
-                        zoneName: "$zone.name",
-                        regionName: "$region.name",
-                        chapterName: "$chapter.name",
-                        memberName: "$member.fullName",
-                        productName: "$product.productName",
-                        createdAt: 1
+                        orderId: 1,
+                        orderDate: "$createdAt",
+                        status: 1,
+                        quantity: 1,
+                        grantTotal: 1,
+
+                        zoneName: { $ifNull: ["$zone.name", ""] },
+                        regionName: { $ifNull: ["$region.region", ""] },
+                        chapterName: { $ifNull: ["$chapter.chapterName", ""] },
+                        memberName: { $ifNull: ["$members.fullName", ""] },
+                        productName: { $ifNull: ["$product.productName", ""] }
                     }
                 },
 
-                { $sort: { createdAt: -1 } },
+                { $sort: { orderDate: -1 } },
 
-                // -------------------------
-                // PAGINATION
-                // -------------------------
                 {
                     $facet: {
                         data: [
@@ -236,6 +249,7 @@ export class OrderController {
                     }
                 }
             ];
+
 
             const result = await this.orderRepository.aggregate(pipeline).toArray();
 
