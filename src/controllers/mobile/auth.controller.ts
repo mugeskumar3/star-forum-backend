@@ -13,13 +13,11 @@ import jwt, { SignOptions } from "jsonwebtoken";
 import requestIp from "request-ip";
 import geoip from "geoip-lite";
 import { UAParser } from "ua-parser-js";
-
 import { AppDataSource } from "../../data-source";
-import { Admin } from "../../entity/Admin";
-import { AdminUser } from "../../entity/AdminUser";
 import { LoginHistory } from "../../entity/LoginHistory";
 import response from "../../utils/response";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../../config/jwt";
+import { Member } from "../../entity/Member";
 
 const options: SignOptions = {
     expiresIn: JWT_EXPIRES_IN as any
@@ -28,8 +26,7 @@ const options: SignOptions = {
 @JsonController("/auth")
 export class AuthController {
 
-    private adminRepo = AppDataSource.getMongoRepository(Admin);
-    private adminUserRepo = AppDataSource.getMongoRepository(AdminUser);
+    private memberRepo = AppDataSource.getMongoRepository(Member);
     private loginHistoryRepo =
         AppDataSource.getMongoRepository(LoginHistory);
 
@@ -57,25 +54,17 @@ export class AuthController {
                     "pin is required"
                 );
             }
+            const member = await this.memberRepo.findOne({
+                isActive: 1,
+                isDelete: 0,
+                mobileNumber: phoneNumber
+            } as any);
 
-            const admin =
-                (await this.adminRepo.findOne({
-                    phoneNumber,
-                    isActive: 1,
-                    isDelete: 0
-                } as any)) ||
-                (await this.adminUserRepo.findOne({
-                    phoneNumber,
-                    isActive: 1,
-                    isDelete: 0
-                } as any));
-
-            if (!admin) {
+            if (!member) {
                 return response(res, StatusCodes.UNAUTHORIZED, "Invalid mobile number");
             }
 
-            // 2️⃣ Validate PIN
-            const validPin = await bcrypt.compare(pin, admin.pin);
+            const validPin = await bcrypt.compare(pin, member.pin);
             if (!validPin) {
                 return response(res, StatusCodes.UNAUTHORIZED, "Invalid PIN");
             }
@@ -84,11 +73,8 @@ export class AuthController {
             const ipAddress =
                 requestIp.getClientIp(req) || "UNKNOWN";
 
-            // 4️⃣ UA Parser (TS SAFE)
             const parser = new UAParser(req.headers["user-agent"] as string);
             const ua = parser.getResult();
-
-            // 5️⃣ Device Name (Physical device)
             let deviceName = "Unknown Device";
 
             if (ua.device.vendor && ua.device.model) {
@@ -122,47 +108,41 @@ export class AuthController {
 
             let payload: any;
 
-            if (admin instanceof Admin) {
+            if (member instanceof Member) {
                 payload = {
-                    id: admin.id.toString(),
-                    phoneNumber: admin.phoneNumber,
-                    role: admin.role,
-                    userType: "ADMIN"
-                };
-            } else {
-                payload = {
-                    id: admin.id.toString(),
-                    phoneNumber: admin.phoneNumber,
-                    roleId: admin.roleId.toString(),
-                    userType: "ADMIN_USER"
+                    id: member.id.toString(),
+                    phoneNumber: member.mobileNumber,
+                    // role: member.role,
+                    userType: "MEMBER"
                 };
             }
 
             await this.loginHistoryRepo.save({
-                userId: admin.id,
+                userId: member.id,
                 userType: payload.userType,
-                userName: admin.name,
-                phoneNumber: admin.phoneNumber,
+                userName: member.fullName,
+                phoneNumber: member.mobileNumber,
                 deviceName,
                 browserName,
                 currentLocation,
                 ipAddress,
-                loginfrom:"MOBILE",
+                loginfrom: "MOBILE",
                 status: "SUCCESS",
                 loginAt: new Date()
             });
 
             // 🔟 Sign JWT
-          const token = jwt.sign(payload, JWT_SECRET, options);
+            const token = jwt.sign(payload, JWT_SECRET, options);
 
             // ✅ Response
             return response(res, StatusCodes.OK, "Login successful", {
                 token,
                 userType: payload.userType,
                 user: {
-                    id: admin.id,
-                    name: admin.name,
-                    phoneNumber: admin.phoneNumber
+                    id: member.id,
+                    name: member.fullName,
+                    phoneNumber: member.mobileNumber,
+                    companyName: member.companyName
                 }
             });
 

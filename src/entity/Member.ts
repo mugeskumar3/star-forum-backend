@@ -140,4 +140,7 @@ export class Member {
 
     @Column()
     badgeIds: ObjectId[];
+
+    @Column()
+    pin: string;
 }
