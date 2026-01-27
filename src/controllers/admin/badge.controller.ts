@@ -81,7 +81,7 @@ export class BadgeController {
 
       const operation: any[] = [];
 
-      operation.push({ $match: match });
+      operation.push({ $match: match }, { $sort: { createdAt: -1 } },);
 
       if (limit > 0) {
         operation.push(
