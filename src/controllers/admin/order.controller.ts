@@ -247,7 +247,7 @@ export class OrderController {
 
                 {
                     $lookup: {
-                        phoneNumberers",phoneNumber
+                        from: "chapters",
                         localField: "chapterIdObj",
                         foreignField: "_id",
                         as: "chapter"
@@ -313,6 +313,9 @@ export class OrderController {
                         chapterName: "$chapter.chapterName",
                         memberName: "$members.fullName",
                         mobileNumber: "$members.mobileNumber",
+                        status: 1,
+                        paymentStatus: 1,
+                        grantTotal: 1,
 
                         // Pick first productName (same as your sample output)
                         productName: {
