@@ -50,6 +50,9 @@ export class Referral {
   @Column({ nullable: true })
   comments?: string;
 
+  @Column({ nullable: true })
+  status?: string;
+
   @Column()
   fromMemberId: ObjectId;
 

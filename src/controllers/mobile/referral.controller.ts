@@ -49,6 +49,7 @@ export class ReferralController {
 
       const referral = this.referralRepo.create({
         ...body,
+        status: body.status || "Completed",
         chapterId: body.chapterId
           ? new ObjectId(body.chapterId)
           : undefined,

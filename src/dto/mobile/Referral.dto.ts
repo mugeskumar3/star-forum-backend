@@ -55,4 +55,8 @@ export class CreateReferralDto {
   @IsOptional()
   @IsString()
   comments?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 }
