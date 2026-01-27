@@ -14,7 +14,7 @@ import { ObjectId } from "mongodb";
 import { StatusCodes } from "http-status-codes";
 import { AuthMiddleware, AuthPayload } from "../../middlewares/AuthMiddleware";
 import { AppDataSource } from "../../data-source";
-import { Order, OrderStatus } from "../../entity/Order";
+import { Order, OrderStatus, PaymentStatus } from "../../entity/Order";
 import { CreateOrderDto } from "../../dto/admin/Order.dto";
 import { handleErrorResponse, pagination, response } from "../../utils";
 import { generateOrderId } from "../../utils/id.generator";
@@ -62,6 +62,7 @@ export class OrderController {
             order.createdBy = new ObjectId(req.user.userId);
             order.createdAt = new Date();
             order.status = OrderStatus.PENDING;
+            order.paymentStatus = PaymentStatus.PENDING;
 
             await this.orderRepository.save(order);
 
@@ -139,7 +140,53 @@ export class OrderController {
             );
         }
     }
+    // --------------------------------------------------
+    // EDIT ORDER
+    // --------------------------------------------------
+    @Put("/status/:id")
+    async orderStatus(
+        @Param("id") id: string,
+        @Req() req: RequestWithUser,
+        @Body() body: any,
+        @Res() res: Response
+    ) {
+        try {
 
+            if (!ObjectId.isValid(id)) {
+                return response(res, StatusCodes.BAD_REQUEST, "Invalid order id");
+            }
+
+            const order = await this.orderRepository.findOneBy({
+                _id: new ObjectId(id),
+                isDelete: 0
+            });
+
+            if (!order) {
+                return response(res, StatusCodes.NOT_FOUND, "Order not found");
+            }
+
+            order.status = body.status;
+            order.paymentStatus = body.paymentStatus;
+            order.updatedBy = new ObjectId(req.user.userId);
+            order.updatedAt = new Date();
+
+            await this.orderRepository.save(order);
+
+            return response(
+                res,
+                StatusCodes.OK,
+                "Order updated successfully",
+                order
+            );
+
+        } catch (error: any) {
+            return response(
+                res,
+                StatusCodes.INTERNAL_SERVER_ERROR,
+                error.message || "Something went wrong"
+            );
+        }
+    }
     // --------------------------------------------------
     // LIST ORDERS
     // --------------------------------------------------
@@ -167,7 +214,7 @@ export class OrderController {
             const pipeline = [
                 { $match: match },
 
-                // 🔹 Convert string IDs → ObjectId (VERY IMPORTANT)
+                // Convert to ObjectId
                 {
                     $addFields: {
                         zoneIdObj: { $toObjectId: "$zoneId" },
@@ -177,9 +224,7 @@ export class OrderController {
                     }
                 },
 
-                // -------------------------
                 // LOOKUPS
-                // -------------------------
                 {
                     $lookup: {
                         from: "zones",
@@ -212,7 +257,7 @@ export class OrderController {
 
                 {
                     $lookup: {
-                        from: "member", // ✅ FIXED
+                        from: "member",
                         localField: "memberIdObj",
                         foreignField: "_id",
                         as: "members"
@@ -220,35 +265,61 @@ export class OrderController {
                 },
                 { $unwind: { path: "$members", preserveNullAndEmptyArrays: true } },
 
+                // PRODUCT LOOKUP
                 {
                     $lookup: {
                         from: "products",
                         localField: "products.productId",
                         foreignField: "_id",
-                        as: "product"
+                        as: "productDetails"
                     }
                 },
-                { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
 
-                // -------------------------
-                // PROJECTION
-                // -------------------------
+                // Compute total quantity
+                {
+                    $addFields: {
+                        totalQty: { $sum: "$products.qty" }
+                    }
+                },
+
+                // FIX DUPLICATION
+                { $unwind: { path: "$productDetails", preserveNullAndEmptyArrays: true } },
+
+                {
+                    $group: {
+                        _id: "$_id",
+                        orderId: { $first: "$orderId" },
+                        createdAt: { $first: "$createdAt" },
+                        zone: { $first: "$zone" },
+                        region: { $first: "$region" },
+                        chapter: { $first: "$chapter" },
+                        members: { $first: "$members" },
+                        totalQty: { $first: "$totalQty" },
+
+                        productNames: { $push: "$productDetails.productName" }
+                    }
+                },
+
+                // FINAL OUTPUT
                 {
                     $project: {
-                        _id: 1,
                         orderId: 1,
                         orderDate: "$createdAt",
-                        status: 1,
-                        quantity: 1,
-                        grantTotal: 1,
+                        totalQty: 1,
+                        zoneName: "$zone.name",
+                        regionName: "$region.region",
+                        chapterName: "$chapter.chapterName",
+                        memberName: "$members.fullName",
+                        mobileNumber: "$members.mobileNumber",
 
-                        zoneName: { $ifNull: ["$zone.name", ""] },
-                        regionName: { $ifNull: ["$region.region", ""] },
-                        chapterName: { $ifNull: ["$chapter.chapterName", ""] },
-                        memberName: { $ifNull: ["$members.fullName", ""] },
-                        productName: { $ifNull: ["$product.productName", ""] },
-                        mobileNumber: { $ifNull: ["$members.mobileNumber", ""] },
-
+                        // Pick first productName (same as your sample output)
+                        productName: {
+                            $cond: [
+                                { $gt: [{ $size: "$productNames" }, 0] },
+                                { $arrayElemAt: ["$productNames", 0] },
+                                ""
+                            ]
+                        }
                     }
                 },
 
@@ -265,7 +336,6 @@ export class OrderController {
                 }
             ];
 
-
             const result = await this.orderRepository.aggregate(pipeline).toArray();
 
             const data = result[0]?.data || [];
@@ -277,6 +347,7 @@ export class OrderController {
             return handleErrorResponse(error, res);
         }
     }
+
 
 
     // --------------------------------------------------
@@ -369,6 +440,7 @@ export class OrderController {
                         regionName: { $first: "$region.region" },
                         chapterName: { $first: "$chapter.chapterName" },
                         memberName: { $first: "$members.fullName" },
+                        contactNumber: { $first: "$members.mobileNumber" },
 
                         products: {
                             $push: {

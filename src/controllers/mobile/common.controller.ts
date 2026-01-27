@@ -86,10 +86,12 @@ export class CommonController {
         }
     }
 
-    @Get("/list")
+    @Get("/member-list")
     async listMembers(
         @Req() req: RequestWithUser,
-        @Res() res: Response
+        @Res() res: Response,
+        @QueryParams() params: any,
+
     ) {
         try {
             const page = Math.max(Number(req.query.page) || 0, 0);
@@ -106,9 +108,14 @@ export class CommonController {
 
             const match: any = {
                 isDelete: 0,
-                chapter: loginMember.chapter
             };
 
+            if (params.chapterId) {
+                match.chapter = new ObjectId(params.chapterId)
+            } 
+            else {
+                match.chapter = loginMember.chapter
+            }
             const pipeline: any[] = [
                 { $match: match },
                 { $sort: { createdAt: -1 } }
