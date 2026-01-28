@@ -193,7 +193,6 @@ export class CreateMemberDto {
 export class UpdateMemberDto {
 
     @IsOptional()
-    @IsString()
     profileImage?: {
         fileName?: string;
         path?: string;
