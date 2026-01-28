@@ -46,7 +46,9 @@ export class ChiefGuestController {
             chiefGuest.chiefGuestName = body.chiefGuestName;
             chiefGuest.contactNumber = body.contactNumber;
             chiefGuest.businessCategory = body.businessCategory;
-            chiefGuest.sourceOfEvent = body.sourceOfEvent;
+            chiefGuest.email = body.email;
+            chiefGuest.location = body.location;
+            chiefGuest.address = body.address;
             chiefGuest.status = body.status || "MAY_BE";
             chiefGuest.businessName = body.businessName || "";
 
@@ -118,6 +120,9 @@ export class ChiefGuestController {
                         businessCategory: 1,
                         businessName: 1,
                         createdAt: 1,
+                        email: 1,
+                        location: 1,
+                        address: 1,
                         invitedBy: {
                             _id: "$member._id",
                             name: "$member.fullName"

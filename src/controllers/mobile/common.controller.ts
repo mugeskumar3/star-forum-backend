@@ -124,6 +124,14 @@ export class CommonController {
             }
             const pipeline: any[] = [
                 { $match: match },
+                {
+                    $lookup: {
+                        from: 'businesscategories',
+                        localField: 'businessCategory',
+                        foreignField: '_id',
+                        as: 'businesscategories'
+                    }
+                },
                 { $sort: { createdAt: -1 } },
                 {
                     $project: {
@@ -131,6 +139,10 @@ export class CommonController {
                         fullName: 1,
                         profileImage: 1,
                         membershipId: 1,
+                        companyName: 1,
+                        businessCategoryName: {
+                            $arrayElemAt: ["$businesscategories.name", 0]
+                        },
                     }
                 }
             ];

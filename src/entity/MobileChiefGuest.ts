@@ -27,8 +27,13 @@ export class MobileChiefGuest {
     businessName: string;
     // 🔹 Source of event
     @Column()
-    sourceOfEvent: string;
+    email: string;
 
+    @Column()
+    location: string;
+
+    @Column()
+    address: string;
     // 🔹 Status
     @Column({ default: "MAY_BE" })
     status: "YES" | "MAY_BE" | "NO";

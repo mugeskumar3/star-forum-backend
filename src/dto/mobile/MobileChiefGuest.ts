@@ -25,9 +25,11 @@ export class CreateMobileChiefGuestDto {
     @IsString()
     businessName: string;
     @IsString()
-    sourceOfEvent: string;
-
-
+    email: string;
+    @IsString()
+    location: string;
+    @IsString()
+    address: string;
     @IsOptional()
     @IsEnum(VisitorStatus)
     status?: VisitorStatus; // default MAY_BE
