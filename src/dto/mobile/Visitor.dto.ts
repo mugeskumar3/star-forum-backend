@@ -31,11 +31,4 @@ export class CreateVisitorDto {
 
     @IsString()
     email: string;
-
-    @IsMongoId()
-    @IsString()
-    chapterId: string;
-
-    @IsString()
-    status: string
 }

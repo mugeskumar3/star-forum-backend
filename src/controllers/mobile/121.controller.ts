@@ -146,6 +146,25 @@ export class OneToOneMeetingController {
                 },
 
                 { $unwind: { path: "$createdByDetails", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: "businesscategories",
+                        localField: "member.businessCategory",
+                        foreignField: "_id",
+                        as: "memberCategory"
+                    }
+                },
+                { $unwind: { path: "$memberCategory", preserveNullAndEmptyArrays: true } },
+
+                {
+                    $lookup: {
+                        from: "businesscategories",
+                        localField: "createdByDetails.businessCategory",
+                        foreignField: "_id",
+                        as: "createdByCategory"
+                    }
+                },
+                { $unwind: { path: "$createdByCategory", preserveNullAndEmptyArrays: true } },
 
                 {
                     $project: {
@@ -163,7 +182,9 @@ export class OneToOneMeetingController {
                             name: "$member.fullName",
                             mobile: "$member.phoneNumber",
                             email: "$member.email",
-                            profileImage: '$member.profileImage'
+                            profileImage: '$member.profileImage',
+                            companyName: '$member.companyName',
+                            businessCategoryName: '$memberCategory.name'
 
                         },
                         intiatedByDetails: {
@@ -171,7 +192,10 @@ export class OneToOneMeetingController {
                             name: "$createdByDetails.fullName",
                             mobile: "$createdByDetails.phoneNumber",
                             email: "$createdByDetails.email",
-                            profileImage: '$createdByDetails.profileImage'
+                            profileImage: '$createdByDetails.profileImage',
+                            companyName: '$createdByDetails.companyName',
+                            businessCategoryName: '$createdByCategory.name'
+
                         }
                     }
                 },

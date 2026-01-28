@@ -57,7 +57,7 @@ export class VisitorController {
             visitor.contactNumber = body.contactNumber;
             visitor.businessCategory = body.businessCategory;
             visitor.companyName = body.companyName;
-            visitor.status = body.status || "Pending";
+            visitor.status = "Pending";
             visitor.visitorDate = body.visitorDate;
             visitor.email = body.email;
             visitor.chapterId = member.chapter;
@@ -220,7 +220,20 @@ export class VisitorController {
                         preserveNullAndEmptyArrays: true
                     }
                 },
-
+                {
+                    $lookup: {
+                        from: "chapters",
+                        localField: "chapterId",
+                        foreignField: "_id",
+                        as: "chapters"
+                    }
+                },
+                {
+                    $unwind: {
+                        path: "$chapters",
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
                 {
                     $project: {
                         visitorName: 1,
@@ -228,12 +241,16 @@ export class VisitorController {
                         sourceOfEvent: 1,
                         status: 1,
                         businessCategory: 1,
+                        companyName: 1,
+                        email: 1,
 
                         createdAt: 1,
                         invitedBy: {
                             _id: "$member._id",
                             name: "$member.fullName"
-                        }
+                        },
+                        chapterName: "$chapters.chapterName",
+                        visitorDate: 1
                     }
                 },
 
@@ -254,10 +271,11 @@ export class VisitorController {
 
             const data = result?.data || [];
             const total = result?.meta?.[0]?.total || 0;
-            console.log(total, 'total');
 
             return pagination(total, data, limit, page, res);
         } catch (error) {
+            console.log(error);
+
             return handleErrorResponse(error, res);
         }
     }
