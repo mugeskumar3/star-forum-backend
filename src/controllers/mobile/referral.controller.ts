@@ -126,7 +126,7 @@ export class ReferralController {
         },
         {
           $lookup: {
-            from: "members",
+            from: "member",
             let: { memberId: "$fromMemberId" },
             pipeline: [
               {
@@ -155,7 +155,7 @@ export class ReferralController {
         },
         {
           $lookup: {
-            from: "members",
+            from: "member",
             let: { memberId: "$toMemberId" },
             pipeline: [
               {
@@ -232,7 +232,7 @@ async getReceivedReferrals(
       },
       {
         $lookup: {
-          from: "members",
+          from: "member",
           let: { memberId: "$fromMemberId" },
           pipeline: [
             {
@@ -261,7 +261,7 @@ async getReceivedReferrals(
       },
       {
         $lookup: {
-          from: "members",
+          from: "member",
           let: { memberId: "$toMemberId" },
           pipeline: [
             {
