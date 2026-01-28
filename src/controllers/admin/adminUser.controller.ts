@@ -100,7 +100,7 @@ export class AdminUserController {
             operation.push({ $match: match });
             operation.push({
                 $lookup: {
-                    from: "roles",
+                    from: "role",
                     let: { roleId: "$roleId" },
                     pipeline: [
                         {
@@ -178,14 +178,68 @@ export class AdminUserController {
     }
 
     @Get("/:id")
-    async getAdminUserById(@Param("id") id: string, @Res() res: Response) {
+    async getAdminUserById(
+        @Param("id") id: string,
+        @Res() res: Response
+    ) {
         try {
-            const adminUser = await this.adminUserRepository.findOneBy({
-                _id: new ObjectId(id),
-                isDelete: 0
+            const operation: any[] = [];
+
+            operation.push({
+                $match: {
+                    _id: new ObjectId(id),
+                    isDelete: 0
+                }
             });
 
-            if (!adminUser) {
+            // ===== ROLE LOOKUP =====
+            operation.push({
+                $lookup: {
+                    from: "role",
+                    let: { roleId: "$roleId" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$_id", "$$roleId"] }
+                            }
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                name: 1
+                            }
+                        }
+                    ],
+                    as: "role"
+                }
+            });
+
+            operation.push({
+                $unwind: {
+                    path: "$role",
+                    preserveNullAndEmptyArrays: true
+                }
+            });
+
+            // ===== PROJECT =====
+            operation.push({
+                $project: {
+                    name: 1,
+                    email: 1,
+                    companyName: 1,
+                    phoneNumber: 1,
+                    isActive: 1,
+                    roleId: 1,
+                    roleName: "$role.name",
+                    createdAt: 1
+                }
+            });
+
+            const result = await this.adminUserRepository
+                .aggregate(operation)
+                .toArray();
+
+            if (!result.length) {
                 return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
             }
 
@@ -193,12 +247,13 @@ export class AdminUserController {
                 res,
                 StatusCodes.OK,
                 "AdminUser fetched successfully",
-                adminUser
+                result[0]
             );
-        } catch (error: any) {
+        } catch (error) {
             return handleErrorResponse(error, res);
         }
     }
+
 
     @Put("/:id")
     async updateAdminUser(
@@ -241,9 +296,9 @@ export class AdminUserController {
             if (body.email) adminUser.email = body.email;
             if (body.companyName) adminUser.companyName = body.companyName;
 
-            if (body.pin) {
-                adminUser.pin = await bcrypt.hash(body.pin, 10);
-            }
+            // if (body.pin) {
+            //     adminUser.pin = await bcrypt.hash(body.pin, 10);
+            // }
 
             if (body.roleId) adminUser.roleId = new ObjectId(body.roleId);
             if (body.isActive !== undefined) adminUser.isActive = body.isActive;

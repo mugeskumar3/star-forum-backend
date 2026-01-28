@@ -115,13 +115,93 @@ export class ReferralController {
     @Res() res: Response
   ) {
     try {
-      const referrals = await this.referralRepo.find({
-        where: {
-          fromMemberId: new ObjectId(req.user.userId),
-          isDelete: 0
+      const memberId = new ObjectId(req.user.userId);
+
+      const referrals = await this.referralRepo.aggregate([
+        {
+          $match: {
+            fromMemberId: memberId,
+            isDelete: 0
+          }
         },
-        order: { createdAt: "DESC" }
-      });
+        {
+          $lookup: {
+            from: "members",
+            let: { memberId: "$fromMemberId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$_id", "$$memberId"] }
+                }
+              },
+              {
+                $project: {
+                  _id: 1,
+                  fullName: 1,
+                  email: 1,
+                  mobile: 1,
+                  profileImage: 1
+                }
+              }
+            ],
+            as: "fromMember"
+          }
+        },
+        {
+          $unwind: {
+            path: "$fromMember",
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $lookup: {
+            from: "members",
+            let: { memberId: "$toMemberId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$_id", "$$memberId"] }
+                }
+              },
+              {
+                $project: {
+                  _id: 1,
+                  fullName: 1,
+                  email: 1,
+                  mobile: 1,
+                  profileImage: 1
+                }
+              }
+            ],
+            as: "toMember"
+          }
+        },
+        {
+          $unwind: {
+            path: "$toMember",
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        },
+        {
+          $project: {
+            referralFor: 1,
+            referralType: 1,
+            referralName: 1,
+            telephone: 1,
+            email: 1,
+            address: 1,
+            rating: 1,
+            comments: 1,
+            status: 1,
+            createdAt: 1,
+            fromMember: 1,
+            toMember: 1
+          }
+        }
+      ]).toArray();
 
       return response(
         res,
@@ -133,28 +213,113 @@ export class ReferralController {
       return handleErrorResponse(error, res);
     }
   }
-  @Get("/received")
-  async getReceivedReferrals(
-    @Req() req: any,
-    @Res() res: Response
-  ) {
-    try {
-      const referrals = await this.referralRepo.find({
-        where: {
-          toMemberId: new ObjectId(req.user.userId),
-          isDelete: 0
-        },
-        order: { createdAt: "DESC" }
-      });
 
-      return response(
-        res,
-        StatusCodes.OK,
-        "Received referrals fetched",
-        referrals
-      );
-    } catch (error) {
-      return handleErrorResponse(error, res);
-    }
+ @Get("/received")
+async getReceivedReferrals(
+  @Req() req: any,
+  @QueryParams() query: any,
+  @Res() res: Response
+) {
+  try {
+    const memberId = new ObjectId(req.user.userId);
+
+    const referrals = await this.referralRepo.aggregate([
+      {
+        $match: {
+          toMemberId: memberId,
+          isDelete: 0
+        }
+      },
+      {
+        $lookup: {
+          from: "members",
+          let: { memberId: "$fromMemberId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$memberId"] }
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                fullName: 1,
+                email: 1,
+                mobile: 1,
+                profileImage: 1
+              }
+            }
+          ],
+          as: "fromMember"
+        }
+      },
+      {
+        $unwind: {
+          path: "$fromMember",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "members",
+          let: { memberId: "$toMemberId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$memberId"] }
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                fullName: 1,
+                email: 1,
+                mobile: 1,
+                profileImage: 1
+              }
+            }
+          ],
+          as: "toMember"
+        }
+      },
+      {
+        $unwind: {
+          path: "$toMember",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      {
+        $sort: { createdAt: -1 }
+      },
+
+      {
+        $project: {
+          referralFor: 1,
+          referralType: 1,
+          referralName: 1,
+          telephone: 1,
+          email: 1,
+          address: 1,
+          rating: 1,
+          comments: 1,
+          status: 1,
+          createdAt: 1,
+          fromMember: 1,
+          toMember: 1
+        }
+      }
+    ]).toArray();
+
+    return response(
+      res,
+      StatusCodes.OK,
+      "Received referrals fetched",
+      referrals
+    );
+  } catch (error) {
+    return handleErrorResponse(error, res);
   }
+}
+
 }
