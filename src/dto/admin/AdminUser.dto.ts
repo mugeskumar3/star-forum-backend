@@ -53,10 +53,8 @@ export class UpdateAdminUserDto {
     @IsString()
     phoneNumber?: string;
 
-    @IsOptional()
-    @IsString()
-    @Length(4)
-    pin?: string;
+    // @IsOptional()
+    // pin?: string;
 
     @IsOptional()
     @IsMongoId()
