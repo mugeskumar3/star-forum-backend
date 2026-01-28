@@ -35,6 +35,7 @@ export class CommonController {
     // =========================
     @Get("/chapter-list")
     async listChapters(
+        @Req() req: RequestWithUser,
         @QueryParams() query: any,
         @Res() res: Response
     ) {
@@ -43,7 +44,19 @@ export class CommonController {
             const limit = Math.max(Number(query.limit) || 1000, 1);
             const search = query.search?.toString();
 
-            const match: any = { isDelete: 0 };
+            const loginMember = await this.memberRepository.findOneBy({
+                _id: new ObjectId(req.user.userId),
+                isDelete: 0
+            });
+
+            if (!loginMember) {
+                return res.status(404).json({ message: "Member not found" });
+            }
+
+            const match: any = {
+                isDelete: 0,
+                _id: { $ne: loginMember.chapter }
+            };
 
             if (search) {
                 match.$or = [
@@ -67,7 +80,7 @@ export class CommonController {
                 {
                     $facet: {
                         data: [
-                            { $skip: page },
+                            { $skip: page * limit },
                             { $limit: limit }
                         ],
                         meta: [{ $count: "total" }]
@@ -81,6 +94,7 @@ export class CommonController {
             const total = result?.meta?.[0]?.total || 0;
 
             return pagination(total, data, limit, page, res);
+
         } catch (error) {
             return handleErrorResponse(error, res);
         }
@@ -91,7 +105,6 @@ export class CommonController {
         @Req() req: RequestWithUser,
         @Res() res: Response,
         @QueryParams() params: any,
-
     ) {
         try {
             const page = Math.max(Number(req.query.page) || 0, 0);
@@ -108,20 +121,27 @@ export class CommonController {
 
             const match: any = {
                 isDelete: 0,
+                _id: { $ne: new ObjectId(req.user.userId) }
             };
 
             if (params.chapterId) {
-                match.chapter = new ObjectId(params.chapterId)
-            }
-            else {
-                match.chapter = loginMember.chapter
+                match.chapter = new ObjectId(params.chapterId);
+            } else {
+                match.chapter = loginMember.chapter;
             }
 
             if (params.phoneNumber) {
-                match.$or = [
-                    { phoneNumber: { $regex: params.phoneNumber, $options: "i" } }
-                ];
+
+                if (params.otherchapter === "true") {
+                    match.chapter = { $ne: loginMember.chapter };
+                }
+
+                match.phoneNumber = {
+                    $regex: params.phoneNumber,
+                    $options: "i"
+                };
             }
+
             const pipeline: any[] = [
                 { $match: match },
                 {
@@ -142,7 +162,7 @@ export class CommonController {
                         companyName: 1,
                         businessCategoryName: {
                             $arrayElemAt: ["$businesscategories.name", 0]
-                        },
+                        }
                     }
                 }
             ];
@@ -155,7 +175,6 @@ export class CommonController {
             }
 
             const data = await this.memberRepository.aggregate(pipeline).toArray();
-
             const total = await this.memberRepository.countDocuments(match);
 
             return pagination(

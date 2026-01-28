@@ -5,8 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn
 } from "typeorm";
-import { ReferralFor, ReferralType } from "../enum/referrals";
+import { ReferralFor, ReferralStatus, ReferralType } from "../enum/referrals";
 import { ObjectId } from "mongodb";
+import { IsEnum } from "class-validator";
 
 @Entity("referrals")
 export class Referral {
@@ -51,7 +52,8 @@ export class Referral {
   comments?: string;
 
   @Column({ nullable: true })
-  status?: string;
+  @IsEnum(ReferralStatus)
+  status?: ReferralStatus;
 
   @Column()
   fromMemberId: ObjectId;

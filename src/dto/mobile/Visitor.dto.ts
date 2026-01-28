@@ -27,6 +27,9 @@ export class CreateVisitorDto {
     companyName: string;
 
     @IsString()
+    address: string;
+
+    @IsString()
     visitorDate: Date;
 
     @IsString()

@@ -6,7 +6,9 @@ import {
   Res,
   UseBefore,
   QueryParams,
-  Body
+  Body,
+  Patch,
+  Param
 } from "routing-controllers";
 import { Response } from "express";
 import { ObjectId } from "mongodb";
@@ -21,8 +23,10 @@ import { UserPointHistory } from "../../entity/UserPointHistory";
 import { AuthMiddleware } from "../../middlewares/AuthMiddleware";
 import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
-import { CreateReferralDto } from "../../dto/mobile/Referral.dto";
+import { CreateReferralDto, UpdateReferralStatusDto } from "../../dto/mobile/Referral.dto";
 import { pagination } from "../../utils";
+import { ReferralStatus } from "../../enum/referrals";
+import { Member } from "../../entity/Member";
 
 @UseBefore(AuthMiddleware)
 @JsonController("/referrals")
@@ -32,6 +36,8 @@ export class ReferralController {
 
   private pointsRepo =
     AppDataSource.getMongoRepository(Points);
+  private memberRepository = 
+  AppDataSource.getMongoRepository(Member);
 
   private userPointsRepo =
     AppDataSource.getMongoRepository(UserPoints);
@@ -50,7 +56,10 @@ export class ReferralController {
 
       const referral = this.referralRepo.create({
         ...body,
-        status: body.status || "Completed",
+        status: body.status
+          ? (body.status as ReferralStatus)
+          : ReferralStatus.NOT_CONTACTED,
+
         chapterId: body.chapterId
           ? new ObjectId(body.chapterId)
           : undefined,
@@ -142,12 +151,28 @@ export class ReferralController {
                 }
               },
               {
+                $lookup: {
+                  from: "businesscategories",
+                  localField: "businessCategory",
+                  foreignField: "_id",
+                  as: "businessCategory"
+                }
+              },
+              {
+                $unwind: {
+                  path: "$businessCategory",
+                  preserveNullAndEmptyArrays: true
+                }
+              },
+              {
                 $project: {
                   _id: 1,
                   fullName: 1,
                   email: 1,
                   phoneNumber: 1,
-                  profileImage: 1
+                  profileImage: 1,
+                  companyName: 1,
+                  businessCategoryName: "$businessCategory.name"
                 }
               }
             ],
@@ -173,12 +198,28 @@ export class ReferralController {
                 }
               },
               {
+                $lookup: {
+                  from: "businesscategories",
+                  localField: "businessCategory",
+                  foreignField: "_id",
+                  as: "businessCategory"
+                }
+              },
+              {
+                $unwind: {
+                  path: "$businessCategory",
+                  preserveNullAndEmptyArrays: true
+                }
+              },
+              {
                 $project: {
                   _id: 1,
                   fullName: 1,
                   email: 1,
                   phoneNumber: 1,
-                  profileImage: 1
+                  profileImage: 1,
+                  companyName: 1,
+                  businessCategoryName: "$businessCategory.name"
                 }
               }
             ],
@@ -250,12 +291,13 @@ export class ReferralController {
       };
 
       const pipeline: any[] = [
+        // ===== MATCH =====
         { $match: matchStage },
 
         // ===== FROM MEMBER =====
         {
           $lookup: {
-            from: "members",   // IMPORTANT: plural
+            from: "member",
             let: { memberId: "$fromMemberId" },
             pipeline: [
               {
@@ -264,12 +306,29 @@ export class ReferralController {
                 }
               },
               {
+                $lookup: {
+                  from: "businesscategories",
+                  localField: "businessCategory",
+                  foreignField: "_id",
+                  as: "businessCategory"
+                }
+              },
+              {
+                $unwind: {
+                  path: "$businessCategory",
+                  preserveNullAndEmptyArrays: true
+                }
+              },
+
+              {
                 $project: {
                   _id: 1,
                   fullName: 1,
                   email: 1,
                   phoneNumber: 1,
-                  profileImage: 1
+                  profileImage: 1,
+                  companyName: 1,
+                  businessCategoryName: "$businessCategory.name"
                 }
               }
             ],
@@ -286,7 +345,7 @@ export class ReferralController {
         // ===== TO MEMBER =====
         {
           $lookup: {
-            from: "members",
+            from: "member",
             let: { memberId: "$toMemberId" },
             pipeline: [
               {
@@ -295,12 +354,28 @@ export class ReferralController {
                 }
               },
               {
+                $lookup: {
+                  from: "businesscategories",
+                  localField: "businessCategory",
+                  foreignField: "_id",
+                  as: "businessCategory"
+                }
+              },
+              {
+                $unwind: {
+                  path: "$businessCategory",
+                  preserveNullAndEmptyArrays: true
+                }
+              },
+              {
                 $project: {
                   _id: 1,
                   fullName: 1,
                   email: 1,
                   phoneNumber: 1,
-                  profileImage: 1
+                  profileImage: 1,
+                  companyName: 1,
+                  businessCategoryName: "$businessCategory.name"
                 }
               }
             ],
@@ -321,7 +396,7 @@ export class ReferralController {
         { $skip: page * limit },
         { $limit: limit },
 
-        // ===== PROJECT =====
+        // ===== FINAL PROJECT =====
         {
           $project: {
             referralFor: 1,
@@ -344,7 +419,6 @@ export class ReferralController {
         .aggregate(pipeline)
         .toArray();
 
-      // ===== TOTAL COUNT =====
       const totalCount = await this.referralRepo.countDocuments(matchStage);
 
       return pagination(totalCount, referrals, limit, page, res);
@@ -353,5 +427,118 @@ export class ReferralController {
     }
   }
 
+
+  @Patch("/status/:id")
+  async updateReferralStatus(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() body: UpdateReferralStatusDto,
+    @Res() res: Response
+  ) {
+    try {
+      const referralId = new ObjectId(id);
+      const userId = new ObjectId(req.user.userId);
+
+      const referral = await this.referralRepo.findOne({
+        where: {
+          _id: referralId,
+          isDelete: 0
+        }
+      });
+
+      if (!referral) {
+        return response(
+          res,
+          StatusCodes.NOT_FOUND,
+          "Referral not found"
+        );
+      }
+
+      if (
+        !referral.fromMemberId.equals(userId) &&
+        !referral.toMemberId.equals(userId)
+      ) {
+        return response(
+          res,
+          StatusCodes.FORBIDDEN,
+          "You are not allowed to update this referral"
+        );
+      }
+
+      await this.referralRepo.updateOne(
+        { _id: referralId },
+        {
+          $set: {
+            status: body.status,
+            updatedAt: new Date()
+          }
+        }
+      );
+
+      return response(
+        res,
+        StatusCodes.OK,
+        "Referral status updated successfully"
+      );
+
+    } catch (error) {
+      return handleErrorResponse(error, res);
+    }
+  }
+ @Get("/insideReferralProfile")
+async insideReferralProfile(
+  @Req() req: any,
+  @Res() res: Response
+) {
+  try {
+    const userId = new ObjectId(req.user.userId);
+
+    const profile = await this.memberRepository.findOne({
+      where: {
+        _id: userId,
+        isDelete: 0
+      }
+    });
+
+    if (!profile) {
+      return response(
+        res,
+        StatusCodes.NOT_FOUND,
+        "Inside Refferal not found"
+      );
+    }
+
+    const officeAddress = profile.officeAddress
+      ? [
+          profile.officeAddress.doorNo,
+          profile.officeAddress.oldNo,
+          profile.officeAddress.street,
+          profile.officeAddress.area,
+          profile.officeAddress.city,
+          profile.officeAddress.state,
+          profile.officeAddress.pincode
+        ]
+          .filter(Boolean) 
+          .join(", ")
+      : "";
+
+    const result = {
+      fullName: profile.fullName,
+      phoneNumber: profile.phoneNumber,
+      email: profile.email,
+      address: officeAddress
+    };
+
+    return response(
+      res,
+      StatusCodes.OK,
+      "inside Refferal successfully",
+      result
+    );
+
+  } catch (error) {
+    return handleErrorResponse(error, res);
+  }
+}
 
 }

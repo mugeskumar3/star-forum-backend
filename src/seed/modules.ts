@@ -25,7 +25,6 @@ export async function seedDefaultModules() {
     "Members Registration",
     "Meeting Creation",
     "Attendance List",
-    "General Update",
     "Community Update",
     "Star Update",
     "Points",

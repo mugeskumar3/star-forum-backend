@@ -46,6 +46,7 @@ export class ChiefGuestController {
             chiefGuest.chiefGuestName = body.chiefGuestName;
             chiefGuest.contactNumber = body.contactNumber;
             chiefGuest.businessCategory = body.businessCategory;
+            chiefGuest.businessName = body.businessName;
             chiefGuest.email = body.email;
             chiefGuest.location = body.location;
             chiefGuest.address = body.address;

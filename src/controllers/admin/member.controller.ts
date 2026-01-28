@@ -301,19 +301,15 @@ export class MemberController {
                         isDelete: 0
                     }
                 },
-
-                // ----------------------------
-                // OPTIONAL LOOKUPS (future)
-                // ----------------------------
-                // {
-                //   $lookup: {
-                //     from: "regions",
-                //     localField: "region",
-                //     foreignField: "_id",
-                //     as: "regionDetails"
-                //   }
-                // },
-                // { $unwind: { path: "$regionDetails", preserveNullAndEmptyArrays: true } },
+                {
+                  $lookup: {
+                    from: "regions",
+                    localField: "region",
+                    foreignField: "_id",
+                    as: "regionDetails"
+                  }
+                },
+                { $unwind: { path: "$regionDetails", preserveNullAndEmptyArrays: true } },
 
                 {
                     $project: {

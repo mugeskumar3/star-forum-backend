@@ -88,7 +88,8 @@ export class AdminUserController {
     ) {
         try {
             const page = Number(query.page ?? 0);
-            const limit = Number(query.limit ?? 0);
+            let limit = Number(query.limit ?? 0);
+
             const match: any = {
                 isDelete: 0
             };
@@ -96,34 +97,36 @@ export class AdminUserController {
             if (query.status !== undefined) {
                 match.isActive = Number(query.status);
             }
-            const operation: any[] = [];
-            operation.push({ $match: match });
-            operation.push({
-                $lookup: {
-                    from: "role",
-                    let: { roleId: "$roleId" },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: { $eq: ["$_id", "$$roleId"] }
+
+            const operation: any[] = [
+                { $match: match },
+                {
+                    $lookup: {
+                        from: "roles",
+                        let: { roleId: "$roleId" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ["$_id", "$$roleId"] }
+                                }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    name: 1
+                                }
                             }
-                        },
-                        {
-                            $project: {
-                                _id: 0,
-                                name: 1
-                            }
-                        }
-                    ],
-                    as: "role"
+                        ],
+                        as: "role"
+                    }
+                },
+                {
+                    $unwind: {
+                        path: "$role",
+                        preserveNullAndEmptyArrays: true
+                    }
                 }
-            });
-            operation.push({
-                $unwind: {
-                    path: "$role",
-                    preserveNullAndEmptyArrays: true
-                }
-            });
+            ];
 
             if (limit > 0) {
                 operation.push(
@@ -149,14 +152,20 @@ export class AdminUserController {
                 .aggregate(operation)
                 .toArray();
 
-            const Count =
-                await this.adminUserRepository.countDocuments(match);
+            const total = await this.adminUserRepository.countDocuments(match);
 
-            return pagination(Count, result, limit, page, res);
+            /** ✅ Important fix */
+            if (limit === 0) {
+                limit = total;
+            }
+
+            return pagination(total, result, limit, page, res);
+
         } catch (error) {
             return handleErrorResponse(error, res);
         }
     }
+
 
     @Get("/active")
     async getActiveAdminUsers(@Res() res: Response) {

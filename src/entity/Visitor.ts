@@ -32,6 +32,9 @@ export class Visitor {
     email: string;
 
     @Column()
+    address: string;
+
+    @Column()
     visitorDate: Date;
     // 🔹 Audit
     @Column()

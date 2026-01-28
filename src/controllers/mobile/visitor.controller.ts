@@ -35,9 +35,6 @@ export class VisitorController {
     private visitorRepo = AppDataSource.getMongoRepository(Visitor);
     private memberRepo = AppDataSource.getMongoRepository(Member);
 
-    // =========================
-    // ✅ CREATE VISITOR
-    // =========================
     @Post("/")
     async createVisitor(
         @Body() body: CreateVisitorDto,
@@ -57,6 +54,7 @@ export class VisitorController {
             visitor.contactNumber = body.contactNumber;
             visitor.businessCategory = body.businessCategory;
             visitor.companyName = body.companyName;
+            visitor.address = body.address;
             visitor.status = "Pending";
             visitor.visitorDate = body.visitorDate;
             visitor.email = body.email;
@@ -243,7 +241,7 @@ export class VisitorController {
                         businessCategory: 1,
                         companyName: 1,
                         email: 1,
-
+                        address: 1,
                         createdAt: 1,
                         invitedBy: {
                             _id: "$member._id",

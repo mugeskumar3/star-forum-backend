@@ -8,7 +8,7 @@ import {
   Min,
   Max
 } from "class-validator";
-import { ReferralFor, ReferralType } from "../../enum/referrals";
+import { ReferralFor, ReferralStatus, ReferralType } from "../../enum/referrals";
 
 export class CreateReferralDto {
   // Step 1
@@ -57,6 +57,10 @@ export class CreateReferralDto {
   comments?: string;
 
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(ReferralStatus)
+  status?: ReferralStatus;
+}
+export class UpdateReferralStatusDto {
+  @IsEnum(ReferralStatus)
+  status: ReferralStatus;
 }
