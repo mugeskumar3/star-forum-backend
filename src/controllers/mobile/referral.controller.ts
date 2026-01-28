@@ -133,24 +133,9 @@ async getGivenReferrals(
       // ===== FROM MEMBER =====
       {
         $lookup: {
-          from: "members",
-          let: { memberId: "$fromMemberId" },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ["$id", "$$memberId"] }
-              }
-            },
-            {
-              $project: {
-                id: 1,
-                fullName: 1,
-                email: 1,
-                phoneNumber: 1,
-                profileImage: 1
-              }
-            }
-          ],
+          from: "member",
+          localfield: "fromMemberId",
+          foreignField: "_id",
           as: "fromMember"
         }
       },
@@ -164,24 +149,9 @@ async getGivenReferrals(
       // ===== TO MEMBER =====
       {
         $lookup: {
-          from: "members",
-          let: { memberId: "$toMemberId" },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ["$id", "$$memberId"] }
-              }
-            },
-            {
-              $project: {
-                id: 1,
-                fullName: 1,
-                email: 1,
-                phoneNumber: 1,
-                profileImage: 1
-              }
-            }
-          ],
+          from: "member",
+          localfield: "toMemberId",
+          foreignField: "_id",
           as: "toMember"
         }
       },
