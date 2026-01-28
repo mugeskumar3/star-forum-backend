@@ -189,9 +189,6 @@ export class CreateMemberDto {
     @IsString()
     @IsIn(["Gold", "Diamond", "Platinum"])
     clubMemberType: string;
-
-    @IsMongoId()
-    createdBy: string;
 }
 export class UpdateMemberDto {
 
