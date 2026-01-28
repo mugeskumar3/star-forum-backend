@@ -18,22 +18,27 @@ export class Visitor {
 
     @Column()
     contactNumber: string;
-
+    @Column()
+    status: string;
     // 🔹 Business category (lookup)
     @Column()
     businessCategory: string;
 
     // 🔹 Source of event
     @Column()
-    sourceOfEvent: string;
+    companyName: string;
 
-    // 🔹 Status
-    @Column({ default: "MAY_BE" })
-    status: "YES" | "MAY_BE" | "NO";
+    @Column()
+    email: string;
 
+    @Column()
+    visitorDate: Date;
     // 🔹 Audit
     @Column()
     createdBy: ObjectId;
+    // 🔹 Audit
+    @Column()
+    chapterId: ObjectId;
 
     @Column()
     updatedBy: ObjectId;

@@ -23,6 +23,7 @@ import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
 import pagination from "../../utils/pagination";
 import { CreateVisitorDto } from "../../dto/mobile/Visitor.dto";
+import { Member } from "../../entity/Member";
 
 interface RequestWithUser extends Request {
     user: AuthPayload;
@@ -32,6 +33,7 @@ interface RequestWithUser extends Request {
 @JsonController("/visitor")
 export class VisitorController {
     private visitorRepo = AppDataSource.getMongoRepository(Visitor);
+    private memberRepo = AppDataSource.getMongoRepository(Member);
 
     // =========================
     // ✅ CREATE VISITOR
@@ -43,13 +45,22 @@ export class VisitorController {
         @Res() res: Response
     ) {
         try {
-            const visitor = new Visitor();
 
+            const member = await this.memberRepo.findOne({
+                where: {
+                    _id: new ObjectId(req.user.userId)
+                }
+            })
+
+            const visitor = new Visitor();
             visitor.visitorName = body.visitorName;
             visitor.contactNumber = body.contactNumber;
             visitor.businessCategory = body.businessCategory;
-            visitor.sourceOfEvent = body.sourceOfEvent;
-            visitor.status = body.status || "MAY_BE";
+            visitor.companyName = body.companyName;
+            visitor.status = body.status || "Pending";
+            visitor.visitorDate = body.visitorDate;
+            visitor.email = body.email;
+            visitor.chapterId = member.chapter;
 
             visitor.isActive = 1;
             visitor.isDelete = 0;

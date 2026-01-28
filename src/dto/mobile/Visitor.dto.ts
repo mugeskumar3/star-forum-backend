@@ -24,10 +24,18 @@ export class CreateVisitorDto {
     businessCategory: string;
 
     @IsString()
-    sourceOfEvent: string;
+    companyName: string;
 
+    @IsString()
+    visitorDate: Date;
 
-    @IsOptional()
-    @IsEnum(VisitorStatus)
-    status?: VisitorStatus; // default MAY_BE
+    @IsString()
+    email: string;
+
+    @IsMongoId()
+    @IsString()
+    chapterId: string;
+
+    @IsString()
+    status: string
 }
