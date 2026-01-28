@@ -22,6 +22,7 @@ import { AuthMiddleware } from "../../middlewares/AuthMiddleware";
 import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
 import { CreateReferralDto } from "../../dto/mobile/Referral.dto";
+import { pagination } from "../../utils";
 
 @UseBefore(AuthMiddleware)
 @JsonController("/referrals")
@@ -108,114 +109,8 @@ export class ReferralController {
     }
   }
 
-  @Get("/given")
-  async getGivenReferrals(
-    @Req() req: any,
-    @QueryParams() query: any,
-    @Res() res: Response
-  ) {
-    try {
-      const memberId = new ObjectId(req.user.userId);
-
-      const referrals = await this.referralRepo.aggregate([
-        {
-          $match: {
-            fromMemberId: memberId,
-            isDelete: 0
-          }
-        },
-        {
-          $lookup: {
-            from: "member",
-            let: { memberId: "$fromMemberId" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ["$_id", "$$memberId"] }
-                }
-              },
-              {
-                $project: {
-                  _id: 1,
-                  fullName: 1,
-                  email: 1,
-                  mobile: 1,
-                  profileImage: 1
-                }
-              }
-            ],
-            as: "fromMember"
-          }
-        },
-        {
-          $unwind: {
-            path: "$fromMember",
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $lookup: {
-            from: "member",
-            let: { memberId: "$toMemberId" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ["$_id", "$$memberId"] }
-                }
-              },
-              {
-                $project: {
-                  _id: 1,
-                  fullName: 1,
-                  email: 1,
-                  mobile: 1,
-                  profileImage: 1
-                }
-              }
-            ],
-            as: "toMember"
-          }
-        },
-        {
-          $unwind: {
-            path: "$toMember",
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $sort: { createdAt: -1 }
-        },
-        {
-          $project: {
-            referralFor: 1,
-            referralType: 1,
-            referralName: 1,
-            telephone: 1,
-            email: 1,
-            address: 1,
-            rating: 1,
-            comments: 1,
-            status: 1,
-            createdAt: 1,
-            fromMember: 1,
-            toMember: 1
-          }
-        }
-      ]).toArray();
-
-      return response(
-        res,
-        StatusCodes.OK,
-        "Given referrals fetched",
-        referrals
-      );
-    } catch (error) {
-      return handleErrorResponse(error, res);
-    }
-  }
-
- @Get("/received")
-async getReceivedReferrals(
+ @Get("/given")
+async getGivenReferrals(
   @Req() req: any,
   @QueryParams() query: any,
   @Res() res: Response
@@ -223,29 +118,35 @@ async getReceivedReferrals(
   try {
     const memberId = new ObjectId(req.user.userId);
 
-    const referrals = await this.referralRepo.aggregate([
-      {
-        $match: {
-          toMemberId: memberId,
-          isDelete: 0
-        }
-      },
+    const page = Number(query.page) || 0;
+    const limit = Number(query.limit) || 10;
+
+    const matchStage = {
+      fromMemberId: memberId,
+      isDelete: 0
+    };
+
+    const pipeline: any[] = [
+      // ===== MATCH =====
+      { $match: matchStage },
+
+      // ===== FROM MEMBER =====
       {
         $lookup: {
-          from: "member",
+          from: "members",
           let: { memberId: "$fromMemberId" },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ["$_id", "$$memberId"] }
+                $expr: { $eq: ["$id", "$$memberId"] }
               }
             },
             {
               $project: {
-                _id: 1,
+                id: 1,
                 fullName: 1,
                 email: 1,
-                mobile: 1,
+                phoneNumber: 1,
                 profileImage: 1
               }
             }
@@ -259,22 +160,24 @@ async getReceivedReferrals(
           preserveNullAndEmptyArrays: true
         }
       },
+
+      // ===== TO MEMBER =====
       {
         $lookup: {
-          from: "member",
+          from: "members",
           let: { memberId: "$toMemberId" },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ["$_id", "$$memberId"] }
+                $expr: { $eq: ["$id", "$$memberId"] }
               }
             },
             {
               $project: {
-                _id: 1,
+                id: 1,
                 fullName: 1,
                 email: 1,
-                mobile: 1,
+                phoneNumber: 1,
                 profileImage: 1
               }
             }
@@ -289,10 +192,14 @@ async getReceivedReferrals(
         }
       },
 
-      {
-        $sort: { createdAt: -1 }
-      },
+      // ===== SORT =====
+      { $sort: { createdAt: -1 } },
 
+      // ===== PAGINATION =====
+      { $skip: page * limit },
+      { $limit: limit },
+
+      // ===== FINAL PROJECT =====
       {
         $project: {
           referralFor: 1,
@@ -309,17 +216,142 @@ async getReceivedReferrals(
           toMember: 1
         }
       }
-    ]).toArray();
+    ];
 
-    return response(
-      res,
-      StatusCodes.OK,
-      "Received referrals fetched",
-      referrals
-    );
+    const referrals = await this.referralRepo
+      .aggregate(pipeline)
+      .toArray();
+
+    const totalCount = await this.referralRepo.countDocuments(matchStage);
+
+    return pagination(totalCount, referrals, limit, page, res);
   } catch (error) {
     return handleErrorResponse(error, res);
   }
 }
+
+
+
+ @Get("/received")
+async getReceivedReferrals(
+  @Req() req: any,
+  @QueryParams() query: any,
+  @Res() res: Response
+) {
+  try {
+    const memberId = new ObjectId(req.user.userId);
+
+    const page = Number(query.page) || 0;
+    const limit = Number(query.limit) || 10;
+
+    const matchStage = {
+      toMemberId: memberId,
+      isDelete: 0
+    };
+
+    const pipeline: any[] = [
+      { $match: matchStage },
+
+      // ===== FROM MEMBER =====
+      {
+        $lookup: {
+          from: "members",   // IMPORTANT: plural
+          let: { memberId: "$fromMemberId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$memberId"] }
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                fullName: 1,
+                email: 1,
+                phoneNumber: 1,
+                profileImage: 1
+              }
+            }
+          ],
+          as: "fromMember"
+        }
+      },
+      {
+        $unwind: {
+          path: "$fromMember",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      // ===== TO MEMBER =====
+      {
+        $lookup: {
+          from: "members",
+          let: { memberId: "$toMemberId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$memberId"] }
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                fullName: 1,
+                email: 1,
+                phoneNumber: 1,
+                profileImage: 1
+              }
+            }
+          ],
+          as: "toMember"
+        }
+      },
+      {
+        $unwind: {
+          path: "$toMember",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      // ===== SORT =====
+      { $sort: { createdAt: -1 } },
+
+      // ===== PAGINATION =====
+      { $skip: page * limit },
+      { $limit: limit },
+
+      // ===== PROJECT =====
+      {
+        $project: {
+          referralFor: 1,
+          referralType: 1,
+          referralName: 1,
+          telephone: 1,
+          email: 1,
+          address: 1,
+          rating: 1,
+          comments: 1,
+          status: 1,
+          createdAt: 1,
+          fromMember: 1,
+          toMember: 1
+        }
+      }
+    ];
+
+    const referrals = await this.referralRepo
+      .aggregate(pipeline)
+      .toArray();
+
+    // ===== TOTAL COUNT =====
+    const totalCount = await this.referralRepo.countDocuments(matchStage);
+
+    return pagination(totalCount, referrals, limit, page, res);
+  } catch (error) {
+    return handleErrorResponse(error, res);
+  }
+}
+
 
 }
