@@ -74,11 +74,15 @@ export class ThankyouSlipController {
     @Get("/list")
     async listThankyouSlip(
         @QueryParams() query: any,
+        @Req() req: RequestWithUser,
         @Res() res: Response
     ) {
         const page = Math.max(Number(query.page) || 0, 0);
         const limit = Math.max(Number(query.limit) || 10, 1);
         const search = query.search?.toString();
+        const filterBy = query.filterBy?.toString();
+        const userId = new ObjectId(req.user.userId); // logged-in user
+        console.log(userId, "userId");
 
         const match: any = { isDelete: 0 };
 
@@ -87,27 +91,75 @@ export class ThankyouSlipController {
                 { comments: { $regex: search, $options: "i" } }
             ];
         }
+        if (filterBy === "given") {
+            match.createdBy = userId;      // slips I gave
+        }
+
+        if (filterBy === "received") {
+            match.thankTo = userId;        // slips I received
+        }
+
 
         const pipeline = [
             { $match: match },
 
-            // 🔹 Created By Member
+            // 🔹 Created By Member (thankedBy)
             {
                 $lookup: {
                     from: "member",
-                    localField: "createdBy",
-                    foreignField: "_id",
+                    let: { memberId: "$createdBy" },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$_id", "$$memberId"] } } },
+                        {
+                            $lookup: {
+                                from: "businesscategories",
+                                localField: "businessCategory",
+                                foreignField: "_id",
+                                as: "category"
+                            }
+                        },
+                        { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+                        {
+                            $project: {
+                                _id: 0,
+                                fullName: 1,
+                                profileImage: 1,
+                                businessCategory: "$category.name",
+                                companyName: 1
+                            }
+                        }
+                    ],
                     as: "member"
                 }
             },
             { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
 
-            // 🔹 Thank To Member
+            // 🔹 Thank To Member (thankYouTo)
             {
                 $lookup: {
                     from: "member",
-                    localField: "thankTo",
-                    foreignField: "_id",
+                    let: { thankToId: "$thankTo" },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$_id", "$$thankToId"] } } },
+                        {
+                            $lookup: {
+                                from: "businesscategories",
+                                localField: "businessCategory",
+                                foreignField: "_id",
+                                as: "category"
+                            }
+                        },
+                        { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+                        {
+                            $project: {
+                                _id: 0,
+                                fullName: 1,
+                                profileImage: 1,
+                                businessCategory: "$category.name",
+                                companyName: 1
+                            }
+                        }
+                    ],
                     as: "thankToMember"
                 }
             },
@@ -120,8 +172,8 @@ export class ThankyouSlipController {
                     comments: 1,
                     amount: 1,
                     createdAt: 1,
-                    memberName: "$member.fullName",
-                    thankYouToName: "$thankToMember.fullName"
+                    thankedBy: "$member",
+                    thankYouTo: "$thankToMember"
                 }
             },
 

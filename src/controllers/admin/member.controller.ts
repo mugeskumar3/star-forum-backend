@@ -241,6 +241,7 @@ export class MemberController {
             const search = req.query.search?.toString();
             const region = req.query.region?.toString();
             const chapter = req.query.chapter?.toString();
+            const memberType = req.query.memberType?.toString();
 
             const match: any = { isDelete: 0 };
 
@@ -254,10 +255,74 @@ export class MemberController {
 
             if (region) match.region = new ObjectId(region);
             if (chapter) match.chapter = new ObjectId(chapter);
+            if (memberType) match.clubMemberType = memberType;
 
             const pipeline = [
                 { $match: match },
                 { $sort: { createdAt: -1 } },
+
+                // 🔹 Region Lookup
+                {
+                    $lookup: {
+                        from: "regions",
+                        localField: "region",
+                        foreignField: "_id",
+                        as: "regionDetails"
+                    }
+                },
+                { $unwind: { path: "$regionDetails", preserveNullAndEmptyArrays: true } },
+
+                // 🔹 Chapter Lookup
+                {
+                    $lookup: {
+                        from: "chapters",
+                        localField: "chapter",
+                        foreignField: "_id",
+                        as: "chapterDetails"
+                    }
+                },
+                { $unwind: { path: "$chapterDetails", preserveNullAndEmptyArrays: true } },
+
+                // 🔹 Business Category Lookup
+                {
+                    $lookup: {
+                        from: "businesscategories",
+                        localField: "businessCategory",
+                        foreignField: "_id",
+                        as: "businessCategoryDetails"
+                    }
+                },
+                { $unwind: { path: "$businessCategoryDetails", preserveNullAndEmptyArrays: true } },
+
+                // 🔹 Referred By Lookup
+                {
+                    $lookup: {
+                        from: "member",
+                        localField: "referredBy",
+                        foreignField: "_id",
+                        as: "referredByDetails"
+                    }
+                },
+                { $unwind: { path: "$referredByDetails", preserveNullAndEmptyArrays: true } },
+
+                // 🔹 Project/Format Fields
+                {
+                    $addFields: {
+                        region: "$regionDetails.region",
+                        chapter: "$chapterDetails.chapterName",
+                        businessCategory: "$businessCategoryDetails.name",
+                        referredBy: "$referredByDetails.fullName" // or object if preferred, but user implied names
+                    }
+                },
+                // 🔹 Remove extra lookup objects
+                {
+                    $project: {
+                        regionDetails: 0,
+                        chapterDetails: 0,
+                        businessCategoryDetails: 0,
+                        referredByDetails: 0
+                    }
+                },
 
                 {
                     $facet: {
@@ -302,12 +367,12 @@ export class MemberController {
                     }
                 },
                 {
-                  $lookup: {
-                    from: "regions",
-                    localField: "region",
-                    foreignField: "_id",
-                    as: "regionDetails"
-                  }
+                    $lookup: {
+                        from: "regions",
+                        localField: "region",
+                        foreignField: "_id",
+                        as: "regionDetails"
+                    }
                 },
                 { $unwind: { path: "$regionDetails", preserveNullAndEmptyArrays: true } },
 
