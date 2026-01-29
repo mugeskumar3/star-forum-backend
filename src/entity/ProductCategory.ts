@@ -11,7 +11,7 @@ export class ProductCategory {
     @ObjectIdColumn()
     id: ObjectId;
 
-    @Column({ unique: true })
+    @Column()
     name: string;
 
     @Column("simple-json", { nullable: true })

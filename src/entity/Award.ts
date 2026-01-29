@@ -11,7 +11,7 @@ export class Award {
     @ObjectIdColumn()
     id: ObjectId;
 
-    @Column({ unique: true })
+    @Column()
     name: string;
 
     @Column({ default: 1 })

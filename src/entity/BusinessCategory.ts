@@ -11,7 +11,7 @@ export class BusinessCategory {
     @ObjectIdColumn()
     id: ObjectId;
 
-    @Column({ unique: true })
+    @Column()
     name: string;
 
     @Column({ default: 1 })

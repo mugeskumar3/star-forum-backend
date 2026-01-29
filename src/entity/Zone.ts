@@ -11,7 +11,7 @@ export class Zone {
     @ObjectIdColumn()
     id: ObjectId;
 
-    @Column({ unique: true })
+    @Column()
     name: string;
 
     @Column()
