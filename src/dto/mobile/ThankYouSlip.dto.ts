@@ -1,3 +1,4 @@
+import { Type } from "class-transformer";
 import {
   IsEnum,
   IsMongoId,
@@ -5,30 +6,38 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   Min
 } from "class-validator";
 
 export class CreateThankYouSlipDto {
-  // 🔹 Thank to (Receiver Id)
   @IsMongoId()
   @IsNotEmpty()
   thankTo: string;
 
-  // 🔹 Business Type
   @IsEnum(["New", "Repeat"])
   businessType: "New" | "Repeat";
 
-  // 🔹 Referral Type
   @IsEnum(["Outside", "Inside"])
-  referralType:"Outside" | "Inside";
+  referralType: "Outside" | "Inside";
 
-  // 🔹 Amount
   @IsNumber()
   @Min(0)
   amount: number;
-
-  // 🔹 Comments
   @IsString()
   @IsOptional()
   comments?: string;
 }
+
+export class UpdateThankYouSlipRatingDto {
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  ratings: number;
+
+  @IsString()
+  @IsOptional()
+  comments?: string;
+}
+

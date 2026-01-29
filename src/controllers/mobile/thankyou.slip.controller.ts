@@ -9,20 +9,19 @@ import {
     Req,
     Res,
     QueryParams,
-    UseBefore
+    UseBefore,
+    Patch
 } from "routing-controllers";
 import { Response, Request } from "express";
 import { ObjectId } from "mongodb";
 import { StatusCodes } from "http-status-codes";
-
 import { AppDataSource } from "../../data-source";
-
 import { AuthMiddleware, AuthPayload } from "../../middlewares/AuthMiddleware";
 import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
 import pagination from "../../utils/pagination";
 import { ThankYouSlip } from "../../entity/ThankyouSlip";
-import { CreateThankYouSlipDto } from "../../dto/mobile/ThankYouSlip.dto";
+import { CreateThankYouSlipDto, UpdateThankYouSlipRatingDto } from "../../dto/mobile/ThankYouSlip.dto";
 
 interface RequestWithUser extends Request {
     user: AuthPayload;
@@ -31,11 +30,8 @@ interface RequestWithUser extends Request {
 @UseBefore(AuthMiddleware)
 @JsonController("/thank-you-slip")
 export class ThankyouSlipController {
-    private visitorRepo = AppDataSource.getMongoRepository(ThankYouSlip);
+    private thankyouRepo = AppDataSource.getMongoRepository(ThankYouSlip);
 
-    // =========================
-    // ✅ CREATE ThankyouSlip
-    // =========================
     @Post("/")
     async createThankyouSlip(
         @Body() body: CreateThankYouSlipDto,
@@ -45,7 +41,7 @@ export class ThankyouSlipController {
         try {
             const slip = new ThankYouSlip();
 
-            slip.comments = body.comments;
+            // slip.comments = body.comments;
             slip.thankTo = new ObjectId(body.thankTo);
             slip.businessType = body.businessType;
             slip.referralType = body.referralType;
@@ -55,7 +51,7 @@ export class ThankyouSlipController {
             slip.createdBy = new ObjectId(req.user.userId);
             slip.updatedBy = new ObjectId(req.user.userId);
 
-            const saved = await this.visitorRepo.save(slip);
+            const saved = await this.thankyouRepo.save(slip);
 
             return response(
                 res,
@@ -68,9 +64,6 @@ export class ThankyouSlipController {
         }
     }
 
-    // =========================
-    // ✅ LIST VISITORS (AGGREGATION + MEMBER LOOKUP)
-    // =========================
     @Get("/list")
     async listThankyouSlip(
         @QueryParams() query: any,
@@ -81,7 +74,7 @@ export class ThankyouSlipController {
         const limit = Math.max(Number(query.limit) || 10, 1);
         const search = query.search?.toString();
         const filterBy = query.filterBy?.toString();
-        const userId = new ObjectId(req.user.userId); // logged-in user
+        const userId = new ObjectId(req.user.userId);
         console.log(userId, "userId");
 
         const match: any = { isDelete: 0 };
@@ -92,18 +85,16 @@ export class ThankyouSlipController {
             ];
         }
         if (filterBy === "given") {
-            match.createdBy = userId;      // slips I gave
+            match.createdBy = userId;
         }
 
         if (filterBy === "received") {
-            match.thankTo = userId;        // slips I received
+            match.thankTo = userId;
         }
 
 
         const pipeline = [
             { $match: match },
-
-            // 🔹 Created By Member (thankedBy)
             {
                 $lookup: {
                     from: "member",
@@ -134,7 +125,6 @@ export class ThankyouSlipController {
             },
             { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
 
-            // 🔹 Thank To Member (thankYouTo)
             {
                 $lookup: {
                     from: "member",
@@ -171,6 +161,7 @@ export class ThankyouSlipController {
                     referralType: 1,
                     comments: 1,
                     amount: 1,
+                    ratings: 1,
                     createdAt: 1,
                     thankedBy: "$member",
                     thankYouTo: "$thankToMember"
@@ -190,7 +181,7 @@ export class ThankyouSlipController {
             }
         ];
 
-        const [result] = await this.visitorRepo
+        const [result] = await this.thankyouRepo
             .aggregate(pipeline)
             .toArray();
 
@@ -199,5 +190,60 @@ export class ThankyouSlipController {
 
         return pagination(total, data, limit, page, res)
     }
+    @Patch("/ratings/:id")
+    async updateThankyouSlipRating(
+        @Req() req: any,
+        @Param("id") id: string,
+        @Body() body: UpdateThankYouSlipRatingDto,
+        @Res() res: Response
+    ) {
+        try {
+            const thankyouId = new ObjectId(id);
+            const userId = new ObjectId(req.user.userId);
 
+            const thankyou = await this.thankyouRepo.findOne({
+                where: {
+                    _id: thankyouId,
+                    isDelete: 0
+                }
+            });
+
+            if (!thankyou) {
+                return response(
+                    res,
+                    StatusCodes.NOT_FOUND,
+                    "Thank you slip not found"
+                );
+            }
+
+            if (
+                !thankyou.thankTo.equals(userId) &&
+                !thankyou.createdBy.equals(userId)
+            ) {
+                return response(
+                    res,
+                    StatusCodes.FORBIDDEN,
+                    "You are not allowed to update this thank you slip"
+                );
+            }
+
+            await this.thankyouRepo.updateOne(
+                { _id: thankyouId },
+                {
+                    $set: {
+                        ratings: body.ratings,
+                        comments: body.comments,
+                        updatedAt: new Date()
+                    }
+                }
+            );
+            return response(
+                res,
+                StatusCodes.OK,
+                "Thank you slip rating updated successfully"
+            );
+        } catch (error) {
+            return handleErrorResponse(error, res);
+        }
+    }
 }

@@ -4,9 +4,11 @@ import {
     Column,
     CreateDateColumn,
     UpdateDateColumn,
+    Index,
 } from "typeorm";
 import { ObjectId } from "mongodb";
 @Entity()
+@Index("idx_chapter_active_not_deleted", ["chapter", "isActive", "isDelete"])
 export class Member {
 
     @ObjectIdColumn()

@@ -21,11 +21,14 @@ export class ThankYouSlip {
     businessType: "New" | "Repeat";
 
     @Column({ default: "Inside" })
-    referralType:"Outside" | "Inside";
+    referralType: "Outside" | "Inside";
 
     // 🔹 Amount
     @Column()
     amount: number;
+
+    @Column({ nullable: true })
+    ratings?: number;
 
     // 🔹 Comments
     @Column({ nullable: true })
