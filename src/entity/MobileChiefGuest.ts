@@ -30,9 +30,6 @@ export class MobileChiefGuest {
     email: string;
 
     @Column()
-    location: string;
-
-    @Column()
     address: string;
     // 🔹 Status
     @Column({ default: "MAY_BE" })

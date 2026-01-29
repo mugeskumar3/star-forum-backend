@@ -73,7 +73,7 @@ export class AdminUserController {
             return response(
                 res,
                 StatusCodes.CREATED,
-                "AdminUser created successfully",
+                "Admin User created successfully",
                 savedAdminUser
             );
         } catch (error) {
@@ -178,7 +178,7 @@ export class AdminUserController {
             return response(
                 res,
                 StatusCodes.OK,
-                "Active AdminUsers fetched successfully",
+                "Active Admin Users fetched successfully",
                 adminUsers
             );
         } catch (error: any) {
@@ -249,13 +249,13 @@ export class AdminUserController {
                 .toArray();
 
             if (!result.length) {
-                return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
+                return response(res, StatusCodes.NOT_FOUND, "Admin User not found");
             }
 
             return response(
                 res,
                 StatusCodes.OK,
-                "AdminUser fetched successfully",
+                "Admin User fetched successfully",
                 result[0]
             );
         } catch (error) {
@@ -278,7 +278,7 @@ export class AdminUserController {
             });
 
             if (!adminUser) {
-                return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
+                return response(res, StatusCodes.NOT_FOUND, "Admin User not found");
             }
 
             if (body.phoneNumber) {
@@ -319,7 +319,7 @@ export class AdminUserController {
             return response(
                 res,
                 StatusCodes.OK,
-                "AdminUser updated successfully",
+                "Admin User updated successfully",
                 updatedAdminUser
             );
         } catch (error) {
@@ -337,13 +337,13 @@ export class AdminUserController {
             });
 
             if (!adminUser) {
-                return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
+                return response(res, StatusCodes.NOT_FOUND, "Admin User not found");
             }
 
             adminUser.isDelete = 1;
             await this.adminUserRepository.save(adminUser);
 
-            return response(res, StatusCodes.OK, "AdminUser deleted successfully");
+            return response(res, StatusCodes.OK, "Admin User deleted successfully");
         } catch (error: any) {
             return handleErrorResponse(error, res);
         }
@@ -358,7 +358,7 @@ export class AdminUserController {
             });
 
             if (!adminUser) {
-                return response(res, StatusCodes.NOT_FOUND, "AdminUser not found");
+                return response(res, StatusCodes.NOT_FOUND, "Admin User not found");
             }
 
             adminUser.isActive = adminUser.isActive === 1 ? 0 : 1;
@@ -368,7 +368,7 @@ export class AdminUserController {
             return response(
                 res,
                 StatusCodes.OK,
-                `AdminUser ${adminUser.isActive === 1 ? "activated" : "deactivated"
+                `Admin User ${adminUser.isActive === 1 ? "activated" : "deactivated"
                 } successfully`,
                 updatedAdminUser
             );
@@ -391,11 +391,138 @@ export class AdminUserController {
             return response(
                 res,
                 StatusCodes.OK,
-                "AdminUsers fetched successfully",
+                "Admin Users fetched successfully",
                 adminUsers
             );
         } catch (error: any) {
             return handleErrorResponse(error, res);
         }
     }
+    @Get("/role/code/:roleCode")
+    async getAdminUsersByRoleCode(
+        @Param("roleCode") roleCode: string,
+        @QueryParams() query: any,
+        @Res() res: Response
+    ) {
+        try {
+            const page = Number(query.page ?? 0);
+            let limit = Number(query.limit ?? 0);
+
+            const matchStage: any = {
+                isDelete: 0
+            };
+
+            const pipeline: any[] = [
+                { $match: matchStage },
+
+                {
+                    $lookup: {
+                        from: "roles",
+                        let: { roleId: "$roleId" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ["$_id", "$$roleId"] },
+                                            { $eq: ["$code", roleCode] },
+                                            { $eq: ["$isDelete", 0] }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    name: 1,
+                                    code: 1
+                                }
+                            }
+                        ],
+                        as: "role"
+                    }
+                },
+
+                {
+                    $unwind: {
+                        path: "$role",
+                        preserveNullAndEmptyArrays: false
+                    }
+                }
+            ];
+
+            if (limit > 0) {
+                pipeline.push(
+                    { $skip: page * limit },
+                    { $limit: limit }
+                );
+            }
+
+            pipeline.push({
+                $project: {
+                    name: 1,
+                    email: 1,
+                    companyName: 1,
+                    phoneNumber: 1,
+                    isActive: 1,
+                    roleId: 1,
+                    roleName: "$role.name",
+                    roleCode: "$role.code",
+                    createdAt: 1,
+                }
+            });
+
+            const result = await this.adminUserRepository
+                .aggregate(pipeline)
+                .toArray();
+
+            const totalPipeline = [
+                { $match: matchStage },
+                {
+                    $lookup: {
+                        from: "roles",
+                        let: { roleId: "$roleId" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ["$_id", "$$roleId"] },
+                                            { $eq: ["$code", roleCode] },
+                                            { $eq: ["$isDelete", 0] }
+                                        ]
+                                    }
+                                }
+                            }
+                        ],
+                        as: "role"
+                    }
+                },
+                {
+                    $unwind: {
+                        path: "$role",
+                        preserveNullAndEmptyArrays: false
+                    }
+                },
+                { $count: "total" }
+            ];
+
+            const totalResult = await this.adminUserRepository
+                .aggregate(totalPipeline)
+                .toArray();
+
+            const total = totalResult[0]?.total || 0;
+
+            if (limit === 0) {
+                limit = total;
+            }
+
+            return pagination(total, result, limit, page, res);
+
+        } catch (error: any) {
+            return handleErrorResponse(error, res);
+        }
+    }
+
+
 }

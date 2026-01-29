@@ -16,11 +16,11 @@ export class CreateThankYouSlipDto {
 
   // 🔹 Business Type
   @IsEnum(["New", "Repeat"])
-  businedsType: "New" | "Repeat";
+  businessType: "New" | "Repeat";
 
   // 🔹 Referral Type
-  @IsEnum(["Tier3+", "Outside", "Inside"])
-  referralType: "Tier3+" | "Outside" | "Inside";
+  @IsEnum(["Outside", "Inside"])
+  referralType:"Outside" | "Inside";
 
   // 🔹 Amount
   @IsNumber()

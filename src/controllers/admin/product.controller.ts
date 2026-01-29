@@ -44,7 +44,7 @@ export class ProductController {
             product.productName = body.productName;
             product.price = Number(body.price);
             product.categoryId = new ObjectId(body.categoryId);
-            product.productImage = body.productImage; 
+            product.productImage = body.productImage;
             product.description = body.description || "";
 
             product.isActive = 1;
@@ -163,9 +163,6 @@ export class ProductController {
             const categoryId = req.query.categoryId?.toString();
             const isActive = req.query.isActive;
 
-            // -----------------------------------------------------
-            // MATCH STAGE
-            // -----------------------------------------------------
             const match: any = { isDelete: 0 };
 
             if (search) {
@@ -177,22 +174,56 @@ export class ProductController {
             if (categoryId) match.categoryId = new ObjectId(categoryId);
             if (isActive !== undefined) match.isActive = Number(isActive);
 
-            // -----------------------------------------------------
-            // AGGREGATION PIPELINE
-            // -----------------------------------------------------
             const pipeline = [
                 { $match: match },
                 { $sort: { createdAt: -1 } },
 
                 {
+                    $lookup: {
+                        from: "Productcategories",
+                        let: { categoryId: "$categoryId" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ["$_id", "$$categoryId"] }
+                                }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    name: 1
+                                }
+                            }
+                        ],
+                        as: "category"
+                    }
+                },
+                {
+                    $unwind: {
+                        path: "$category",
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+
+                {
                     $facet: {
                         data: [
                             { $skip: page * limit },
-                            { $limit: limit }
+                            { $limit: limit },
+                            {
+                                $project: {
+                                    productName: 1,
+                                    price: 1,
+                                    description: 1,
+                                    productImage: 1,
+                                    isActive: 1,
+                                    createdAt: 1,
+                                    categoryId: 1,
+                                    categoryName: "$category.name"
+                                }
+                            }
                         ],
-                        meta: [
-                            { $count: "total" }
-                        ]
+                        meta: [{ $count: "total" }]
                     }
                 }
             ];
@@ -210,6 +241,7 @@ export class ProductController {
             return handleErrorResponse(error, res);
         }
     }
+
     @Get("/details/:id")
     async productDetails(
         @Param("id") id: string,

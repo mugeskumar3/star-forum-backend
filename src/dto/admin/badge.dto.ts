@@ -34,6 +34,9 @@ export class UpdateBadgeDto {
     @IsString()
     name?: string;
 
+    @IsString()
+    type?: BadgeType;
+
     @IsOptional()
     badgeImage: {
         fileName?: string;

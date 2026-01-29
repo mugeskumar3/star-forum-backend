@@ -18,10 +18,10 @@ export class ThankYouSlip {
 
     // 🔹 Type: Inside / Outside
     @Column({ default: "New" })
-    businedsType: "New" | "Repeat";
+    businessType: "New" | "Repeat";
 
     @Column({ default: "Inside" })
-    referralType: "Tier3+" | "Outside" | "Inside";
+    referralType:"Outside" | "Inside";
 
     // 🔹 Amount
     @Column()

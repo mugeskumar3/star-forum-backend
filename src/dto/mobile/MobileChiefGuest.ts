@@ -1,6 +1,5 @@
 import {
     IsEnum,
-    IsMongoId,
     IsNotEmpty,
     IsOptional,
     IsString,
@@ -26,11 +25,10 @@ export class CreateMobileChiefGuestDto {
     businessName: string;
     @IsString()
     email: string;
-    @IsString()
-    location: string;
+    
     @IsString()
     address: string;
     @IsOptional()
     @IsEnum(VisitorStatus)
-    status?: VisitorStatus; // default MAY_BE
+    status?: VisitorStatus;
 }

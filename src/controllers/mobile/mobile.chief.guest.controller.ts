@@ -31,9 +31,6 @@ interface RequestWithUser extends Request {
 export class ChiefGuestController {
     private visitorRepo = AppDataSource.getMongoRepository(MobileChiefGuest);
 
-    // =========================
-    // ✅ CREATE VISITOR
-    // =========================
     @Post("/")
     async createChief(
         @Body() body: CreateMobileChiefGuestDto,
@@ -48,7 +45,6 @@ export class ChiefGuestController {
             chiefGuest.businessCategory = body.businessCategory;
             chiefGuest.businessName = body.businessName;
             chiefGuest.email = body.email;
-            chiefGuest.location = body.location;
             chiefGuest.address = body.address;
             chiefGuest.status = body.status || "MAY_BE";
             chiefGuest.businessName = body.businessName || "";
@@ -71,9 +67,6 @@ export class ChiefGuestController {
         }
     }
 
-    // =========================
-    // ✅ LIST VISITORS (AGGREGATION + MEMBER LOOKUP)
-    // =========================
     @Get("/list")
     async listChiefGuest(
         @QueryParams() query: any,
@@ -96,7 +89,6 @@ export class ChiefGuestController {
             const pipeline = [
                 { $match: match },
 
-                // 🔹 Lookup member (Invited By)
                 {
                     $lookup: {
                         from: "member",
@@ -122,7 +114,6 @@ export class ChiefGuestController {
                         businessName: 1,
                         createdAt: 1,
                         email: 1,
-                        location: 1,
                         address: 1,
                         invitedBy: {
                             _id: "$member._id",

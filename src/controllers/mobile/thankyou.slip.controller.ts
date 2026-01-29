@@ -47,7 +47,7 @@ export class ThankyouSlipController {
 
             slip.comments = body.comments;
             slip.thankTo = new ObjectId(body.thankTo);
-            slip.businedsType = body.businedsType;
+            slip.businessType = body.businessType;
             slip.referralType = body.referralType;
             slip.amount = body.amount;
             slip.isActive = 1;
@@ -115,7 +115,7 @@ export class ThankyouSlipController {
 
             {
                 $project: {
-                    businedsType: 1,
+                    businessType: 1,
                     referralType: 1,
                     comments: 1,
                     amount: 1,

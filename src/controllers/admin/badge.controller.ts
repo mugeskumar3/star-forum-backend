@@ -147,8 +147,10 @@ export class BadgeController {
     @Res() res: Response
   ) {
     try {
+      const badgeId = new ObjectId(id);
+
       const badge = await this.badgeRepository.findOneBy({
-        _id: new ObjectId(id),
+        _id: badgeId,
         isDelete: 0
       });
 
@@ -161,7 +163,7 @@ export class BadgeController {
           where: {
             name: body.name,
             isDelete: 0,
-            _id: { $ne: new ObjectId(id) }
+            _id: { $ne: badgeId }
           }
         });
 
@@ -174,6 +176,26 @@ export class BadgeController {
         }
 
         badge.name = body.name;
+      }
+
+      if (body.type && body.type !== badge.type) {
+        const assignedCount =
+          await AppDataSource
+            .getMongoRepository(BadgeHistory)
+            .countDocuments({
+              badgeId,
+              action: "ASSIGNED"
+            });
+
+        if (assignedCount > 0) {
+          return response(
+            res,
+            StatusCodes.BAD_REQUEST,
+            "Badge type cannot be updated because the badge is already assigned"
+          );
+        }
+
+        badge.type = body.type;
       }
 
       if (body.isActive !== undefined) {
@@ -194,10 +216,12 @@ export class BadgeController {
         "Badge updated successfully",
         updatedBadge
       );
+
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
+
 
   @Delete("/:id")
   async deleteBadge(@Param("id") id: string, @Res() res: Response) {
