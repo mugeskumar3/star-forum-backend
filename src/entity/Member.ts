@@ -138,6 +138,30 @@ export class Member {
     @Column()
     updatedBy: ObjectId;
 
+    @Column({ nullable: true })
+    about: string;
+
+    @Column({ nullable: true })
+    websiteUrl: string;
+
+    @Column({ nullable: true })
+    instagramUrl: string;
+
+    @Column({ nullable: true })
+    linkedinUrl: string;
+
+    @Column({ nullable: true })
+    twitterUrl: string;
+
+    @Column({ nullable: true })
+    panCard: string;
+
+    @Column({ nullable: true })
+    bloodGroup: string;
+
+    @Column({ nullable: true })
+    country: string;
+
     @Column()
     badgeIds: ObjectId[];
 
