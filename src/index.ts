@@ -2,22 +2,19 @@ import "reflect-metadata";
 import express from "express";
 import cors from "cors";
 import { useExpressServer } from "routing-controllers";
-import { initializeDataSource } from "./data-source";
+import { AppDataSource } from "./data-source";
 import fileUpload from "express-fileupload";
 import { seedDefaultAdmin } from "./seed/admin";
 import { seedDefaultModules } from "./seed/modules";
 import { seedPoints } from "./seed/points";
 
-async function startServer() {
-  try {
-    // ✅ Initialize database connection
-    const AppDataSource = await initializeDataSource();
+AppDataSource.initialize()
+  .then(async () => {
     console.log("✅ Database connected");
-
-    // ✅ Run seeds
     await seedDefaultAdmin();
     await seedDefaultModules();
     await seedPoints();
+
 
     const app = express();
     app.use("/public", express.static("public"));
@@ -101,12 +98,7 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
-
-  } catch (error) {
+  })
+  .catch((error) => {
     console.error("❌ DB Error:", error);
-    process.exit(1);
-  }
-}
-
-// Start the server
-startServer();
+  });

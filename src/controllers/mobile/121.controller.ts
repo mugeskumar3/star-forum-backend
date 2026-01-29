@@ -28,7 +28,7 @@ interface RequestWithUser extends Request {
 @UseBefore(AuthMiddleware)
 @JsonController("/one-to-one")
 export class OneToOneMeetingController {
-    private meetingRepo = AppDataSource.getMongoRepository(OneToOneMeeting);
+    private oneToOneRepo = AppDataSource.getMongoRepository(OneToOneMeeting);
 
     // ✅ CREATE 121 MEETING
     @Post("/")
@@ -39,7 +39,7 @@ export class OneToOneMeetingController {
     ) {
         try {
             // 🔹 Optional: Prevent duplicate 121 on same day with same member
-            const existing = await this.meetingRepo.findOne({
+            const existing = await this.oneToOneRepo.findOne({
                 where: {
                     meetingWithMemberId: new ObjectId(body.meetingWithMemberId),
                     createdBy: new ObjectId(req.user.userId),
@@ -76,7 +76,7 @@ export class OneToOneMeetingController {
             meeting.createdBy = new ObjectId(req.user.userId);
             meeting.updatedBy = new ObjectId(req.user.userId);
 
-            const savedMeeting = await this.meetingRepo.save(meeting);
+            const savedMeeting = await this.oneToOneRepo.save(meeting);
 
             return response(
                 res,
@@ -215,7 +215,7 @@ export class OneToOneMeetingController {
                 }
             ];
 
-            const [result] = await this.meetingRepo.aggregate(pipeline).toArray();
+            const [result] = await this.oneToOneRepo.aggregate(pipeline).toArray();
 
             const data = result?.data || [];
             const total = result?.meta?.[0]?.total || 0;
