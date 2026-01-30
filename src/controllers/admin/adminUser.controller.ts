@@ -204,7 +204,7 @@ export class AdminUserController {
             // ===== ROLE LOOKUP =====
             operation.push({
                 $lookup: {
-                    from: "role",
+                    from: "roles",
                     let: { roleId: "$roleId" },
                     pipeline: [
                         {
@@ -305,9 +305,9 @@ export class AdminUserController {
             if (body.email) adminUser.email = body.email;
             if (body.companyName) adminUser.companyName = body.companyName;
 
-            // if (body.pin) {
-            //     adminUser.pin = await bcrypt.hash(body.pin, 10);
-            // }
+            if (body.pin) {
+                adminUser.pin = await bcrypt.hash(body.pin, 10);
+            }
 
             if (body.roleId) adminUser.roleId = new ObjectId(body.roleId);
             if (body.isActive !== undefined) adminUser.isActive = body.isActive;

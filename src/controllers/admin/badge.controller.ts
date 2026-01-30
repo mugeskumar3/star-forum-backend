@@ -286,6 +286,14 @@ export class BadgeController {
         );
       }
 
+      if (!ObjectId.isValid(assignToId) || !ObjectId.isValid(badgeId)) {
+        return response(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "Invalid assignToId or badgeId"
+        );
+      }
+
       const userId = new ObjectId(req.user.userId);
       const badgeObjectId = new ObjectId(badgeId);
       const assignToObjectId = new ObjectId(assignToId);
@@ -314,23 +322,40 @@ export class BadgeController {
         return response(res, StatusCodes.NOT_FOUND, `${assignTo} not found`);
       }
 
-      if (target.badgeIds?.some((id: ObjectId) => id.equals(badgeObjectId))) {
-        return response(
-          res,
-          StatusCodes.CONFLICT,
-          "Badge already assigned"
+      if (assignTo === "MEMBER") {
+
+        if (target.badgeIds?.some((id: ObjectId) => id.equals(badgeObjectId))) {
+          return response(
+            res,
+            StatusCodes.CONFLICT,
+            "Badge already assigned"
+          );
+        }
+
+        await repository.updateOne(
+          { _id: assignToObjectId },
+          {
+            $addToSet: { badgeIds: badgeObjectId },
+            $set: { updatedBy: userId }
+          }
         );
       }
 
-      await repository.updateOne(
-        { _id: assignToObjectId },
-        {
-          $addToSet: { badgeIds: badgeObjectId },
-          $set: { updatedBy: userId }
-        }
-      );
+      if (assignTo === "CHAPTER") {
+
+        await repository.updateOne(
+          { _id: assignToObjectId },
+          {
+            $set: {
+              badgeIds: [badgeObjectId],
+              updatedBy: userId
+            }
+          }
+        );
+      }
 
       const historyRepo = AppDataSource.getMongoRepository(BadgeHistory);
+
       await historyRepo.save({
         assignTo,
         assignToId: assignToObjectId,
@@ -344,7 +369,112 @@ export class BadgeController {
         StatusCodes.OK,
         "Badge assigned successfully"
       );
+
     } catch (error) {
+      return handleErrorResponse(error, res);
+    }
+  }
+
+  @Get("/badge-assign/history")
+  async getBadgeHistory(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
+    try {
+
+      const page = Number(query.page ?? 0);
+      const limit = Number(query.limit ?? 10);
+
+      const pipeline: any[] = [
+
+        { $sort: { createdAt: -1 } },
+        {
+          $lookup: {
+            from: "badges",
+            localField: "badgeId",
+            foreignField: "_id",
+            as: "badge"
+          }
+        },
+        { $unwind: { path: "$badge", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "member",
+            localField: "assignToId",
+            foreignField: "_id",
+            as: "member"
+          }
+        },
+        { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "chapter",
+            localField: "assignToId",
+            foreignField: "_id",
+            as: "chapter"
+          }
+        },
+        { $unwind: { path: "$chapter", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            assignTo: 1,
+            action: 1,
+            createdAt: 1,
+
+            badge: {
+              id: "$badge._id",
+              name: "$badge.name",
+              type: "$badge.type",
+              badgeImage: "$badge.badgeImage"
+            },
+
+            assignedTo: {
+              $cond: [
+                { $eq: ["$assignTo", "MEMBER"] },
+                {
+                  id: "$member._id",
+                  name: "$member.fullName"
+                },
+                {
+                  id: "$chapter._id",
+                  name: "$chapter.name"
+                }
+              ]
+            }
+          }
+        }
+      ];
+
+
+      if (limit > 0) {
+        pipeline.push(
+          { $skip: page * limit },
+          { $limit: limit }
+        );
+      }
+
+      const history =
+        await AppDataSource
+          .getMongoRepository(BadgeHistory)
+          .aggregate(pipeline)
+          .toArray();
+
+      const totalCount =
+        await AppDataSource
+          .getMongoRepository(BadgeHistory)
+          .countDocuments({});
+
+      return pagination(
+        totalCount,
+        history,
+        limit,
+        page,
+        res
+      );
+
+    } catch (error) {
+      console.error(error);
       return handleErrorResponse(error, res);
     }
   }

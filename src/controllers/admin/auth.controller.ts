@@ -6,7 +6,8 @@ import {
     Res,
     HttpCode,
     Get,
-    UseBefore
+    UseBefore,
+    QueryParams
 } from "routing-controllers";
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
@@ -24,6 +25,7 @@ import response from "../../utils/response";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../../config/jwt";
 import { AuthMiddleware, AuthPayload } from "../../middlewares/AuthMiddleware";
 import { ObjectId } from "mongodb";
+import { pagination } from "../../utils";
 
 const options: SignOptions = {
     expiresIn: JWT_EXPIRES_IN as any
@@ -331,7 +333,83 @@ export class AuthController {
             );
         }
     }
+    @Get("/login-report")
+    @UseBefore(AuthMiddleware)
+    async getLoginReport(
+        @QueryParams() query: any,
+        @Res() res: Response
+    ) {
+        try {
 
+            const page = Number(query.page ?? 0);
+            const limit = Number(query.limit ?? 10);
 
+            const match: any = {};
+
+            if (query.loginfrom) {
+                match.loginfrom = query.loginfrom; // WEB / MOBILE
+            }
+
+            if (query.userType) {
+                match.userType = query.userType; // ADMIN / ADMIN_USER / MEMBER
+            }
+
+            if (query.status) {
+                match.status = query.status;
+            }
+
+            const pipeline: any[] = [
+                { $match: match },
+                { $sort: { loginAt: -1 } },
+
+                {
+                    $project: {
+                        _id: 1,
+                        userName: 1,
+                        phoneNumber: 1,
+                        userType: 1,
+                        deviceName: 1,
+                        browserName: 1,
+                        currentLocation: 1,
+                        ipAddress: 1,
+                        loginfrom: 1,
+                        status: 1,
+                        loginAt: 1
+                    }
+                }
+            ];
+
+            if (limit > 0) {
+                pipeline.push(
+                    { $skip: page * limit },
+                    { $limit: limit }
+                );
+            }
+
+            const data =
+                await this.loginHistoryRepo
+                    .aggregate(pipeline)
+                    .toArray();
+
+            const totalCount =
+                await this.loginHistoryRepo.countDocuments(match);
+
+            return pagination(
+                totalCount,
+                data,
+                limit,
+                page,
+                res
+            );
+
+        } catch (error) {
+            console.error(error);
+            return response(
+                res,
+                StatusCodes.INTERNAL_SERVER_ERROR,
+                "Failed to fetch login report"
+            );
+        }
+    }
 
 }
