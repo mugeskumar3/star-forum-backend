@@ -4,7 +4,9 @@ import {
     Body,
     Req,
     Res,
-    HttpCode
+    HttpCode,
+    Get,
+    UseBefore
 } from "routing-controllers";
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
@@ -20,11 +22,15 @@ import { AdminUser } from "../../entity/AdminUser";
 import { LoginHistory } from "../../entity/LoginHistory";
 import response from "../../utils/response";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../../config/jwt";
+import { AuthMiddleware, AuthPayload } from "../../middlewares/AuthMiddleware";
+import { ObjectId } from "mongodb";
 
 const options: SignOptions = {
     expiresIn: JWT_EXPIRES_IN as any
 };
-
+interface RequestWithUser extends Request {
+    user: AuthPayload;
+}
 @JsonController("/auth")
 export class AuthController {
 
@@ -147,13 +153,13 @@ export class AuthController {
                 browserName,
                 currentLocation,
                 ipAddress,
-                loginfrom:"WEB",
+                loginfrom: "WEB",
                 status: "SUCCESS",
                 loginAt: new Date()
             });
 
             // 🔟 Sign JWT
-          const token = jwt.sign(payload, JWT_SECRET, options);
+            const token = jwt.sign(payload, JWT_SECRET, options);
 
             // ✅ Response
             return response(res, StatusCodes.OK, "Login successful", {
@@ -175,4 +181,157 @@ export class AuthController {
             );
         }
     }
+    @Get("/profile")
+    @UseBefore(AuthMiddleware)
+    async getCurrentProfile(
+        @Req() req: RequestWithUser,
+        @Res() res: Response
+    ) {
+        try {
+
+            const { userId, userType } = req.user!;
+
+            let data: any[] = [];
+
+            if (userType === "ADMIN") {
+                data = await this.adminRepo.aggregate([
+                    {
+                        $match: {
+                            _id: new ObjectId(userId),
+                            isActive: 1,
+                            isDelete: 0
+                        }
+                    },
+                    {
+                        $project: {
+                            _id: 1,
+                            name: 1,
+                            phoneNumber: 1,
+                            email: 1,
+                            userType: { $literal: "ADMIN" },
+                            role: { $literal: null },
+                            permissions: { $literal: [] }
+                        }
+                    }
+                ]).toArray();
+
+            }
+            else {
+
+                data = await this.adminUserRepo.aggregate([
+                    {
+                        $match: {
+                            _id: new ObjectId(userId),
+                            isActive: 1,
+                            isDelete: 0
+                        }
+                    },
+
+                    {
+                        $lookup: {
+                            from: "roles",
+                            localField: "roleId",
+                            foreignField: "_id",
+                            as: "role"
+                        }
+                    },
+                    { $unwind: { path: "$role", preserveNullAndEmptyArrays: true } },
+                    {
+                        $lookup: {
+                            from: "modules",
+                            localField: "role.permissions.moduleId",
+                            foreignField: "_id",
+                            as: "modules"
+                        }
+                    },
+
+                    {
+                        $addFields: {
+                            permissions: {
+                                $map: {
+                                    input: "$role.permissions",
+                                    as: "perm",
+                                    in: {
+                                        moduleId: "$$perm.moduleId",
+                                        moduleName: {
+                                            $let: {
+                                                vars: {
+                                                    module: {
+                                                        $arrayElemAt: [
+                                                            {
+                                                                $filter: {
+                                                                    input: "$modules",
+                                                                    as: "m",
+                                                                    cond: {
+                                                                        $eq: ["$$m._id", "$$perm.moduleId"]
+                                                                    }
+                                                                }
+                                                            },
+                                                            0
+                                                        ]
+                                                    }
+                                                },
+                                                in: "$$module.name"
+                                            }
+                                        },
+                                        actions: "$$perm.actions"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    {
+                        $project: {
+                            _id: 1,
+                            name: 1,
+                            phoneNumber: 1,
+                            email: 1,
+                            userType: { $literal: "ADMIN_USER" },
+
+                            role: {
+                                id: "$role._id",
+                                name: "$role.name",
+                                code: "$role.code"
+                            },
+
+                            permissions: 1
+                        }
+                    }
+                ]).toArray();
+
+            }
+
+            if (!data.length) {
+                return response(res, StatusCodes.NOT_FOUND, "User not found");
+            }
+
+            const profile = data[0];
+
+            return response(
+                res,
+                StatusCodes.OK,
+                "Profile fetched successfully",
+                {
+                    id: profile._id,
+                    name: profile.name,
+                    phoneNumber: profile.phoneNumber,
+                    email: profile.email,
+                    userType: profile.userType,
+                    role: profile.role,
+                    permissions: profile.permissions || []
+                }
+            );
+
+        } catch (error) {
+            console.error(error);
+            return response(
+                res,
+                StatusCodes.INTERNAL_SERVER_ERROR,
+                "Failed to fetch profile"
+            );
+        }
+    }
+
+
+
 }
