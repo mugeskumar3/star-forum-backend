@@ -14,9 +14,6 @@ import {
 import { Type } from "class-transformer";
 import { ObjectId } from "mongodb";
 
-// ------------------------------
-// OFFICE ADDRESS DTO
-// ------------------------------
 export class OfficeAddressDto {
     @IsString()
     @IsNotEmpty()
@@ -47,9 +44,6 @@ export class OfficeAddressDto {
     pincode: string;
 }
 
-// ------------------------------
-// TRAINING DTO
-// ------------------------------
 export class TrainingDto {
     @IsString()
     year: string;
@@ -58,9 +52,6 @@ export class TrainingDto {
     type: string;
 }
 
-// ------------------------------
-// AWARD DTO
-// ------------------------------
 export class AwardDto {
     @IsString()
     tenure: string;
@@ -69,12 +60,8 @@ export class AwardDto {
     award: ObjectId;
 }
 
-// ------------------------------
-// CREATE MEMBER DTO
-// ------------------------------
 export class CreateMemberDto {
 
-    // BASIC INFORMATION
     @IsOptional()
     profileImage?: {
         fileName?: string;
@@ -185,6 +172,9 @@ export class CreateMemberDto {
     @Type(() => AwardDto)
     awards?: AwardDto[];
 
+    @IsOptional()
+    @IsString()
+    roleId: ObjectId
     // CLUB MEMBER
     @IsString()
     @IsIn(["Gold", "Diamond", "Platinum"])

@@ -8,6 +8,7 @@ import response from "../../utils/response";
 import { ObjectId } from "mongodb";
 import { ApiError, handleErrorResponse, pagination } from "../../utils";
 import { generateMembershipId } from "../../utils/id.generator";
+import { Role } from "../../entity/Role.Permission";
 interface RequestWithUser extends Request {
     query: any;
     files(files: any): unknown;
@@ -18,6 +19,7 @@ interface RequestWithUser extends Request {
 @JsonController("/member")
 export class MemberController {
     private memberRepository = AppDataSource.getMongoRepository(Member);
+    private roleRepository = AppDataSource.getMongoRepository(Role);
 
     @Post('/create')
     async createMember(
@@ -26,9 +28,6 @@ export class MemberController {
         @Res() res: Response
     ) {
         try {
-            // -------------------------
-            // CHECK EXISTING MEMBER
-            // -------------------------
             const exists = await this.memberRepository.findOneBy({
                 email: body.email,
                 isDelete: 0
@@ -41,10 +40,21 @@ export class MemberController {
                     "Member already exists"
                 );
             }
+            const memberRole = await this.roleRepository.findOne({
+                where: {
+                    code: "member",
+                    isDelete: 0
+                },
+                select: ["_id"]
+            });
 
-            // -------------------------
-            // CREATE MEMBER OBJECT
-            // -------------------------
+            if (!memberRole) {
+                return response(
+                    res,
+                    StatusCodes.INTERNAL_SERVER_ERROR,
+                    "Default Member role not configured"
+                );
+            }
             const memberData = new Member();
             memberData.membershipId = await generateMembershipId();
             // memberData.membershipId = body.membershipId;
@@ -66,9 +76,6 @@ export class MemberController {
             memberData.isActive = 1;
             memberData.isDelete = 0;
 
-            // -------------------------
-            // OFFICE ADDRESS
-            // -------------------------
             memberData.officeAddress = {
                 doorNo: body.officeAddress.doorNo,
                 oldNo: body.officeAddress.oldNo,
@@ -81,9 +88,6 @@ export class MemberController {
 
             memberData.isWantSmsEmailUpdates = body.isWantSmsEmailUpdates ?? false;
 
-            // -------------------------
-            // SUBSCRIPTION DETAILS
-            // -------------------------
             memberData.annualFee = body.annualFee;
             memberData.paymentMode = body.paymentMode;
             memberData.transactionId = body.transactionId;
@@ -93,32 +97,17 @@ export class MemberController {
             memberData.gstNumber = body.gstNumber;
             memberData.sendWelcomeSms = body.sendWelcomeSms ?? false;
 
-            // -------------------------
-            // TRAINING REPORT
-            // -------------------------
             memberData.trainingYear = body.trainingYear;
             memberData.trainingTypes = body.trainingTypes;
             memberData.trainings = body.trainings;
 
-            // -------------------------
-            // AWARDS REPORT
-            // -------------------------
             memberData.awards = body.awards;
 
-            // -------------------------
-            // CLUB MEMBER
-            // -------------------------
             memberData.clubMemberType = body.clubMemberType;
 
-            // -------------------------
-            // META FIELDS
-            // -------------------------
             memberData.createdBy = new ObjectId(req.user.userId);
             memberData.updatedBy = new ObjectId(req.user.userId);
-
-            // -------------------------
-            // SAVE MEMBER
-            // -------------------------
+            memberData.roleId = memberRole._id;
             const result = await this.memberRepository.save(memberData);
 
             return response(

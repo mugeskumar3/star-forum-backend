@@ -29,6 +29,9 @@ export class Member {
     phoneNumber: string;
 
     @Column()
+    roleId: ObjectId
+
+    @Column()
     email: string;
 
     @Column()
@@ -58,7 +61,6 @@ export class Member {
     @Column()
     anniversary: Date;
 
-    // OFFICE ADDRESS (Embedded Object)
     @Column()
     officeAddress: {
         doorNo: string;
