@@ -46,4 +46,14 @@ export class UpdateProfileDto {
         path?: string;
         originalName?: string;
     };
+    @IsOptional()
+    officeAddress?: {
+        doorNo?: string;
+        oldNo?: string;
+        street?: string;
+        area?: string;
+        city?: string;
+        state?: string;
+        pincode?: string;
+    };
 }

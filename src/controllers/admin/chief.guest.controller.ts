@@ -8,7 +8,8 @@ import {
     Put,
     Param,
     Get,
-    Delete
+    Delete,
+    Patch
 } from "routing-controllers";
 import { ObjectId } from "mongodb";
 import { StatusCodes } from "http-status-codes";
@@ -171,18 +172,10 @@ export class ChiefGuestController {
             if (isActive !== undefined)
                 match.isActive = Number(isActive);
 
-            if (search) {
-                match.$or = [
-                    { chiefGuestName: { $regex: search, $options: "i" } },
-                    { contactNumber: { $regex: search, $options: "i" } },
-                    { emailId: { $regex: search, $options: "i" } },
-                    { businessName: { $regex: search, $options: "i" } }
-                ];
-            }
 
-            const pipeline = [
+
+            const pipeline: any[] = [
                 { $match: match },
-
                 {
                     $lookup: {
                         from: "businesscategories",
@@ -193,25 +186,62 @@ export class ChiefGuestController {
                 },
                 {
                     $unwind: {
-                        path: "$businesscategories",
+                        path: "$businessCategory",
                         preserveNullAndEmptyArrays: true
                     }
                 },
-
                 {
                     $lookup: {
-                        from: "users",
-                        localField: "referredBy",
-                        foreignField: "_id",
-                        as: "referredBy"
+                        from: "member",
+                        let: { refId: "$referredBy" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ["$_id", "$$refId"] }
+                                }
+                            },
+                            { $project: { fullName: 1 } },
+
+                            {
+                                $unionWith: {
+                                    coll: "adminusers",
+                                    pipeline: [
+                                        {
+                                            $match: {
+                                                $expr: { $eq: ["$_id", "$$refId"] }
+                                            }
+                                        },
+                                        {
+                                            $project: {
+                                                fullName: "$name"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ],
+                        as: "referredByData"
                     }
                 },
                 {
                     $unwind: {
-                        path: "$referredBy",
+                        path: "$referredByData",
                         preserveNullAndEmptyArrays: true
                     }
                 },
+                ...(search ? [{
+                    $match: {
+                        $or: [
+                            { chiefGuestName: { $regex: search, $options: "i" } },
+                            { contactNumber: { $regex: search, $options: "i" } },
+                            { emailId: { $regex: search, $options: "i" } },
+                            { businessName: { $regex: search, $options: "i" } },
+                            { "referredByData.fullName": { $regex: search, $options: "i" } },
+                            { location: { $regex: search, $options: "i" } }
+
+                        ]
+                    }
+                }] : []),
 
                 {
                     $project: {
@@ -224,24 +254,26 @@ export class ChiefGuestController {
                         address: 1,
                         isActive: 1,
                         createdAt: 1,
-                        businessCategoryName: {
-                            $arrayElemAt: ["$businessCategory.name", 0]
-                        },
-                        referredByName: {
-                            $arrayElemAt: ["$referredBy.fullName", 0]
-                        }
+
+                        businessCategoryName: "$businessCategory.name",
+                        referredByName: "$referredByData.fullName"
                     }
                 },
-
-                { $sort: { createdAt: -1 } },
-
+                {
+                    $sort: {
+                        isActive: -1,
+                        createdAt: -1
+                    }
+                },
                 {
                     $facet: {
                         data: [
                             { $skip: page * limit },
                             { $limit: limit }
                         ],
-                        meta: [{ $count: "total" }]
+                        meta: [
+                            { $count: "total" }
+                        ]
                     }
                 }
             ];
@@ -258,11 +290,11 @@ export class ChiefGuestController {
             return handleErrorResponse(error, res);
         }
     }
-    
+
+
     @Get("/details/:id")
     async chiefGuestDetails(
         @Param("id") id: string,
-        @Req() req: RequestWithUser,
         @Res() res: Response
     ) {
         try {
@@ -281,48 +313,60 @@ export class ChiefGuestController {
                         isDelete: 0
                     }
                 },
-
-                // -------------------------
-                // LOOKUPS
-                // -------------------------
                 {
                     $lookup: {
                         from: "business_categories",
                         localField: "businessCategory",
                         foreignField: "_id",
-                        as: "businessCategory"
+                        as: "businessCategoryDetails"
                     }
                 },
                 {
                     $unwind: {
-                        path: "$businessCategory",
+                        path: "$businessCategoryDetails",
                         preserveNullAndEmptyArrays: true
                     }
                 },
-
                 {
                     $lookup: {
-                        from: "users",
-                        localField: "referredBy",
-                        foreignField: "_id",
-                        as: "referredBy"
+                        from: "member",
+                        let: { refId: "$referredBy" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ["$_id", "$$refId"] }
+                                }
+                            },
+                            { $project: { fullName: 1 } },
+
+                            {
+                                $unionWith: {
+                                    coll: "adminusers",
+                                    pipeline: [
+                                        {
+                                            $match: {
+                                                $expr: { $eq: ["$_id", "$$refId"] }
+                                            }
+                                        },
+                                        { $project: { name: 1 } }
+                                    ]
+                                }
+                            }
+                        ],
+                        as: "referredByDetails"
                     }
                 },
                 {
                     $unwind: {
-                        path: "$referredBy",
+                        path: "$referredByDetails",
                         preserveNullAndEmptyArrays: true
                     }
                 },
-
-                // -------------------------
-                // RESPONSE SHAPE
-                // -------------------------
                 {
                     $project: {
                         isDelete: 0,
-                        "businessCategory.isDelete": 0,
-                        "referredBy.password": 0
+                        "referredByDetails.isDelete": 0,
+                        "referredByDetails.password": 0
                     }
                 }
             ];
@@ -354,9 +398,7 @@ export class ChiefGuestController {
             );
         }
     }
-    // --------------------------------------------------
-    // DELETE CHIEF GUEST (SOFT DELETE)
-    // --------------------------------------------------
+
     @Delete("/delete/:id")
     async deleteChiefGuest(
         @Param("id") id: string,
@@ -405,5 +447,28 @@ export class ChiefGuestController {
             );
         }
     }
+    @Patch("/:id/toggle-active")
+    async toggleActive(@Param("id") id: string, @Res() res: Response) {
+        try {
+            const chiefGuest = await this.chiefGuestRepository.findOneBy({
+                _id: new ObjectId(id),
+                isDelete: 0
+            });
 
+            if (!chiefGuest) {
+                return response(res, StatusCodes.NOT_FOUND, "Chief Guest not found");
+            }
+
+            chiefGuest.isActive = chiefGuest.isActive === 1 ? 0 : 1;
+            const updatedChiefGuest = await this.chiefGuestRepository.save(chiefGuest);
+            return response(
+                res,
+                StatusCodes.OK,
+                `Chief Guest ${updatedChiefGuest.isActive === 1 ? "enabled" : "disabled"} successfully`,
+                updatedChiefGuest
+            );
+        } catch (error) {
+            return handleErrorResponse(error, res);
+        }
+    }
 }

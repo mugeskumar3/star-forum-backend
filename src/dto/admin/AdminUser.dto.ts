@@ -14,6 +14,17 @@ export class CreateAdminUserDto {
     @IsNotEmpty()
     name: string;
 
+    @IsOptional()
+    profileImage?: {
+        fileName?: string;
+        path?: string;
+        originalName?: string;
+    } = {
+            fileName: "",
+            path: "",
+            originalName: ""
+        };
+
     @IsEmail()
     email: string;
 
@@ -40,6 +51,17 @@ export class UpdateAdminUserDto {
     @IsOptional()
     @IsString()
     name?: string;
+
+    @IsOptional()
+    profileImage?: {
+        fileName?: string;
+        path?: string;
+        originalName?: string;
+    } = {
+            fileName: "",
+            path: "",
+            originalName: ""
+        };
 
     @IsOptional()
     @IsEmail()

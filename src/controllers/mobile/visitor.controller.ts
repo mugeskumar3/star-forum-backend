@@ -9,7 +9,8 @@ import {
     Req,
     Res,
     QueryParams,
-    UseBefore
+    UseBefore,
+    Patch
 } from "routing-controllers";
 import { Response, Request } from "express";
 import { ObjectId } from "mongodb";
@@ -17,6 +18,9 @@ import { StatusCodes } from "http-status-codes";
 
 import { AppDataSource } from "../../data-source";
 import { Visitor } from "../../entity/Visitor";
+import { Points } from "../../entity/Points";
+import { UserPoints } from "../../entity/UserPoints";
+import { UserPointHistory } from "../../entity/UserPointHistory";
 
 import { AuthMiddleware, AuthPayload } from "../../middlewares/AuthMiddleware";
 import response from "../../utils/response";
@@ -34,6 +38,9 @@ interface RequestWithUser extends Request {
 export class VisitorController {
     private visitorRepo = AppDataSource.getMongoRepository(Visitor);
     private memberRepo = AppDataSource.getMongoRepository(Member);
+    private pointsRepo = AppDataSource.getMongoRepository(Points);
+    private userPointsRepo = AppDataSource.getMongoRepository(UserPoints);
+    private historyRepo = AppDataSource.getMongoRepository(UserPointHistory);
 
     @Post("/")
     async createVisitor(
@@ -59,6 +66,7 @@ export class VisitorController {
             visitor.visitorDate = body.visitorDate;
             visitor.email = body.email;
             visitor.chapterId = member.chapter;
+            visitor.sourceType = "MEETING"
 
             visitor.isActive = 1;
             visitor.isDelete = 0;
@@ -66,6 +74,31 @@ export class VisitorController {
             visitor.updatedBy = new ObjectId(req.user.userId);
 
             const saved = await this.visitorRepo.save(visitor);
+
+            // --- Points Allocation ---
+            const pointConfig = await this.pointsRepo.findOne({
+                where: { key: "visitors", isActive: 1, isDelete: 0 }
+            });
+
+            if (pointConfig) {
+                const userId = new ObjectId(req.user.userId);
+
+                await this.userPointsRepo.updateOne(
+                    { userId, pointKey: "visitors" },
+                    { $inc: { value: pointConfig.value } },
+                    { upsert: true }
+                );
+
+                await this.historyRepo.save({
+                    userId,
+                    pointKey: "visitors",
+                    change: pointConfig.value,
+                    source: "VISITOR",
+                    sourceId: saved._id,
+                    remarks: "Visitor logged",
+                    createdAt: new Date()
+                });
+            }
 
             return response(
                 res,
@@ -81,7 +114,7 @@ export class VisitorController {
     // =========================
     // ✅ UPDATE VISITOR
     // =========================
-    @Put("/:id")
+    @Patch("/:id")
     async updateVisitor(
         @Param("id") id: string,
         @Body() body: CreateVisitorDto,
@@ -272,8 +305,6 @@ export class VisitorController {
 
             return pagination(total, data, limit, page, res);
         } catch (error) {
-            console.log(error);
-
             return handleErrorResponse(error, res);
         }
     }

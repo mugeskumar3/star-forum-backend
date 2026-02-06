@@ -10,7 +10,8 @@ import {
     HttpCode,
     QueryParams,
     UseBefore,
-    Req
+    Req,
+    Patch
 } from "routing-controllers";
 import { Request, Response } from "express";
 import { ObjectId } from "mongodb";
@@ -58,6 +59,7 @@ export class AdminUserController {
 
             const adminUser = new AdminUser();
             adminUser.name = body.name;
+            adminUser.profileImage = body.profileImage || undefined;
             adminUser.email = body.email;
             adminUser.companyName = body.companyName;
             adminUser.phoneNumber = body.phoneNumber;
@@ -100,6 +102,13 @@ export class AdminUserController {
 
             const operation: any[] = [
                 { $match: match },
+
+                {
+                    $sort: {
+                        isActive: -1,
+                        createdAt: -1
+                    }
+                },
                 {
                     $lookup: {
                         from: "roles",
@@ -144,7 +153,9 @@ export class AdminUserController {
                     isActive: 1,
                     roleId: 1,
                     roleName: "$role.name",
-                    createdAt: 1
+                    createdAt: 1,
+                    updatedAt: 1,
+                    profileImage: 1
                 }
             });
 
@@ -240,7 +251,9 @@ export class AdminUserController {
                     isActive: 1,
                     roleId: 1,
                     roleName: "$role.name",
-                    createdAt: 1
+                    createdAt: 1,
+                    updatedAt: 1,
+                    profileImage: 1
                 }
             });
 
@@ -302,6 +315,7 @@ export class AdminUserController {
             }
 
             if (body.name) adminUser.name = body.name;
+            if (body.profileImage) adminUser.profileImage = body.profileImage;
             if (body.email) adminUser.email = body.email;
             if (body.companyName) adminUser.companyName = body.companyName;
 
@@ -349,7 +363,7 @@ export class AdminUserController {
         }
     }
 
-    @Put("/:id/toggle-active")
+    @Patch("/:id/toggle-active")
     async toggleActiveStatus(@Param("id") id: string, @Res() res: Response) {
         try {
             const adminUser = await this.adminUserRepository.findOneBy({
@@ -368,7 +382,7 @@ export class AdminUserController {
             return response(
                 res,
                 StatusCodes.OK,
-                `Admin User ${adminUser.isActive === 1 ? "activated" : "deactivated"
+                `Admin User ${adminUser.isActive === 1 ? "enabled" : "disabled"
                 } successfully`,
                 updatedAdminUser
             );

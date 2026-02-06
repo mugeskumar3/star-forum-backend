@@ -18,7 +18,8 @@ export class OneToOneMeeting {
 
     @Column()
     meetingWithMemberId: ObjectId; // selected person
-
+    @Column()
+    initiatedById: ObjectId; // selected person
     @Column()
     initiatedBy: "SELF" | "PARTNER";
 

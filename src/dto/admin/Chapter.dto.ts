@@ -4,7 +4,8 @@ import {
   IsEnum,
   IsOptional,
   IsMongoId,
-  IsDateString
+  IsDateString,
+  IsNumber
 } from "class-validator";
 import { MeetingType, Weekday } from "../../enum/chapter";
 
@@ -51,6 +52,14 @@ export class CreateChapterDto {
   meetingType: MeetingType;
 
   @IsOptional()
+  @IsNumber()
+  absentLimit?: number;
+
+  @IsOptional()
+  @IsNumber()
+  proxyLimit?: number;
+
+  @IsOptional()
   isActive?: number;
 }
 export class UpdateChapterDto {
@@ -90,6 +99,14 @@ export class UpdateChapterDto {
   @IsOptional()
   @IsEnum(MeetingType)
   meetingType?: MeetingType;
+
+  @IsOptional()
+  @IsNumber()
+  absentLimit?: number;
+
+  @IsOptional()
+  @IsNumber()
+  proxyLimit?: number;
 
   @IsOptional()
   isActive?: number;

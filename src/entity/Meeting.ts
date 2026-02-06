@@ -76,4 +76,11 @@ export class Meeting {
 
     @Column({ nullable: true })
     updatedBy?: ObjectId;
+
+    @Column("simple-json", { nullable: true })
+    qrImage?: {
+        fileName?: string;
+        Path?: string;
+        originalName?: string;
+    };
 }

@@ -9,7 +9,8 @@ import {
   Res,
   QueryParams,
   UseBefore,
-  Req
+  Req,
+  Patch
 } from "routing-controllers";
 import { Response } from "express";
 import { ObjectId } from "mongodb";
@@ -84,7 +85,12 @@ export class ProductCategoryController {
 
       const operation: any[] = [];
 
-      operation.push({ $match: match },{ $sort: { createdAt: -1 } });
+      operation.push({ $match: match }, {
+        $sort: {
+          isActive: -1,
+          createdAt: -1
+        }
+      },);
 
       if (limit > 0) {
         operation.push(
@@ -253,7 +259,7 @@ export class ProductCategoryController {
   }
 
 
-  @Put("/:id/toggle-active")
+  @Patch("/:id/toggle-active")
   async toggleActive(@Param("id") id: string, @Res() res: Response) {
     try {
       const productCategory = await this.productCategoryRepository.findOneBy({
@@ -271,7 +277,7 @@ export class ProductCategoryController {
       return response(
         res,
         StatusCodes.OK,
-        `Product category ${productCategory.isActive === 1 ? "activated" : "deactivated"} successfully`,
+        `Product category ${productCategory.isActive === 1 ? "enabled" : "disabled"} successfully`,
         updatedProductCategory
       );
     } catch (error) {

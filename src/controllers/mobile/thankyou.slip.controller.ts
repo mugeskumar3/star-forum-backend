@@ -21,6 +21,9 @@ import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
 import pagination from "../../utils/pagination";
 import { ThankYouSlip } from "../../entity/ThankyouSlip";
+import { Points } from "../../entity/Points";
+import { UserPoints } from "../../entity/UserPoints";
+import { UserPointHistory } from "../../entity/UserPointHistory";
 import { CreateThankYouSlipDto, UpdateThankYouSlipRatingDto } from "../../dto/mobile/ThankYouSlip.dto";
 
 interface RequestWithUser extends Request {
@@ -31,6 +34,9 @@ interface RequestWithUser extends Request {
 @JsonController("/thank-you-slip")
 export class ThankyouSlipController {
     private thankyouRepo = AppDataSource.getMongoRepository(ThankYouSlip);
+    private pointsRepo = AppDataSource.getMongoRepository(Points);
+    private userPointsRepo = AppDataSource.getMongoRepository(UserPoints);
+    private historyRepo = AppDataSource.getMongoRepository(UserPointHistory);
 
     @Post("/")
     async createThankyouSlip(
@@ -52,6 +58,31 @@ export class ThankyouSlipController {
             slip.updatedBy = new ObjectId(req.user.userId);
 
             const saved = await this.thankyouRepo.save(slip);
+
+            // --- Points Allocation ---
+            const pointConfig = await this.pointsRepo.findOne({
+                where: { key: "thank_you_notes", isActive: 1, isDelete: 0 }
+            });
+
+            if (pointConfig) {
+                const userId = new ObjectId(req.user.userId);
+
+                await this.userPointsRepo.updateOne(
+                    { userId, pointKey: "thank_you_notes" },
+                    { $inc: { value: pointConfig.value } },
+                    { upsert: true }
+                );
+
+                await this.historyRepo.save({
+                    userId,
+                    pointKey: "thank_you_notes",
+                    change: pointConfig.value,
+                    source: "THANK_YOU_NOTE",
+                    sourceId: saved._id,
+                    remarks: "Thank You Slip logged",
+                    createdAt: new Date()
+                });
+            }
 
             return response(
                 res,
@@ -75,7 +106,6 @@ export class ThankyouSlipController {
         const search = query.search?.toString();
         const filterBy = query.filterBy?.toString();
         const userId = new ObjectId(req.user.userId);
-        console.log(userId, "userId");
 
         const match: any = { isDelete: 0 };
 
@@ -246,4 +276,68 @@ export class ThankyouSlipController {
             return handleErrorResponse(error, res);
         }
     }
+    @Patch("/:id")
+    async updateThankYouSlip(
+        @Param("id") id: string,
+        @Body() body: Partial<ThankYouSlip>,
+        @Req() req: RequestWithUser,
+        @Res() res: Response
+    ) {
+        try {
+            const slipId = new ObjectId(id);
+
+            // 1️⃣ Check if record exists
+            const existingSlip = await this.thankyouRepo.findOne({
+                where: { _id: slipId, isDelete: 0 } as any
+            });
+
+            if (!existingSlip) {
+                return response(res, StatusCodes.NOT_FOUND, "Thank You Slip not found");
+            }
+
+            // 2️⃣ Prepare update object
+            const updateData: any = {};
+
+            const allowedFields = [
+                "thankTo",
+                "businessType",
+                "referralType",
+                "amount",
+                "ratings",
+                "comments"
+            ];
+
+            for (const key of allowedFields) {
+                if (body[key] !== undefined && body[key] !== null) {
+                    updateData[key] = body[key];
+                }
+            }
+
+            // Convert thankTo → ObjectId
+            if (updateData.thankTo) {
+                updateData.thankTo = new ObjectId(updateData.thankTo);
+            }
+
+            // Audit fields
+            updateData.updatedBy = new ObjectId(req.user.userId);
+            updateData.updatedAt = new Date();
+
+            // 3️⃣ Update record
+            const result = await this.thankyouRepo.updateOne(
+                { _id: slipId },
+                { $set: updateData }
+            );
+
+            return response(
+                res,
+                StatusCodes.OK,
+                "Thank You Slip updated successfully",
+                result
+            );
+
+        } catch (error) {
+            return handleErrorResponse(error, res);
+        }
+    }
+
 }

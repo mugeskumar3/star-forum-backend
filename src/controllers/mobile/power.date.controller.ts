@@ -6,7 +6,9 @@ import {
     Req,
     Res,
     QueryParams,
-    UseBefore
+    UseBefore,
+    Param,
+    Patch
 } from "routing-controllers";
 import { Response, Request } from "express";
 import { ObjectId } from "mongodb";
@@ -18,6 +20,9 @@ import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
 import pagination from "../../utils/pagination";
 import { PowerDate } from "../../entity/PowerDate";
+import { Points } from "../../entity/Points";
+import { UserPoints } from "../../entity/UserPoints";
+import { UserPointHistory } from "../../entity/UserPointHistory";
 import { CreatePowerDateDto } from "../../dto/mobile/PowerDate.dto";
 
 interface RequestWithUser extends Request {
@@ -28,6 +33,9 @@ interface RequestWithUser extends Request {
 @JsonController("/power-date")
 export class PowerDateController {
     private powerDateRepo = AppDataSource.getMongoRepository(PowerDate);
+    private pointsRepo = AppDataSource.getMongoRepository(Points);
+    private userPointsRepo = AppDataSource.getMongoRepository(UserPoints);
+    private historyRepo = AppDataSource.getMongoRepository(UserPointHistory);
 
     // =========================
     // ✅ CREATE Power Date
@@ -57,11 +65,99 @@ export class PowerDateController {
 
             const saved = await this.powerDateRepo.save(powerDate);
 
+            // --- Points Allocation ---
+            const pointConfig = await this.pointsRepo.findOne({
+                where: { key: "power_dates", isActive: 1, isDelete: 0 }
+            });
+
+            if (pointConfig) {
+                const userId = new ObjectId(req.user.userId);
+
+                await this.userPointsRepo.updateOne(
+                    { userId, pointKey: "power_dates" },
+                    { $inc: { value: pointConfig.value } },
+                    { upsert: true }
+                );
+
+                await this.historyRepo.save({
+                    userId,
+                    pointKey: "power_dates",
+                    change: pointConfig.value,
+                    source: "POWER_DATE",
+                    sourceId: saved._id,
+                    remarks: "Power Date logged",
+                    createdAt: new Date()
+                });
+            }
+
             return response(
                 res,
                 StatusCodes.CREATED,
                 "Created successfully",
                 saved
+            );
+        } catch (error) {
+            return handleErrorResponse(error, res);
+        }
+    }
+    @Patch("/:id")
+    async updatePowerDate(
+        @Param("id") id: string,
+        @Body() body: CreatePowerDateDto,
+        @Req() req: RequestWithUser,
+        @Res() res: Response
+    ) {
+        try {
+            if (!ObjectId.isValid(id)) {
+                return response(res, StatusCodes.BAD_REQUEST, "Invalid PowerDate ID");
+            }
+
+            const powerDate = await this.powerDateRepo.findOne({
+                where: {
+                    _id: new ObjectId(id),
+                    isDelete: 0
+                }
+            });
+
+            if (!powerDate) {
+                return response(res, StatusCodes.NOT_FOUND, "PowerDate not found");
+            }
+
+            // 🔹 Update fields only if provided
+            if (body.members?.length) {
+                powerDate.members = body.members.map(id => new ObjectId(id));
+            }
+
+            if (body.meetingStatus !== undefined)
+                powerDate.meetingStatus = body.meetingStatus;
+
+            if (body.name !== undefined)
+                powerDate.name = body.name;
+
+            if (body.phoneNumber !== undefined)
+                powerDate.phoneNumber = body.phoneNumber;
+
+            if (body.email !== undefined)
+                powerDate.email = body.email;
+
+            if (body.address !== undefined)
+                powerDate.address = body.address;
+
+            if (body.rating !== undefined)
+                powerDate.rating = body.rating;
+
+            if (body.comments !== undefined)
+                powerDate.comments = body.comments;
+
+            powerDate.updatedBy = new ObjectId(req.user.userId);
+
+            const updated = await this.powerDateRepo.save(powerDate);
+
+            return response(
+                res,
+                StatusCodes.OK,
+                "Updated successfully",
+                updated
             );
         } catch (error) {
             return handleErrorResponse(error, res);
@@ -74,13 +170,20 @@ export class PowerDateController {
     @Get("/list")
     async listPowerDate(
         @QueryParams() query: any,
-        @Res() res: Response
+        @Res() res: Response,
+        @Req() req: RequestWithUser
     ) {
         const page = Math.max(Number(query.page) || 0, 0);
         const limit = Math.max(Number(query.limit) || 10, 1);
         const search = query.search?.toString();
-
-        const match: any = { isDelete: 0 };
+        const memberId = new ObjectId(req.user.userId);
+        const match: any = {
+            $or: [
+                { createdBy: memberId },
+                { members: { $in: [memberId] } }
+            ],
+            isDelete: 0
+        };
 
         if (search) {
             match.$or = [
@@ -101,7 +204,7 @@ export class PowerDateController {
                         { $match: { $expr: { $eq: ["$_id", "$$memberId"] } } },
                         {
                             $project: {
-                                _id: 0,
+                                _id: 1,
                                 fullName: 1,
                                 profileImage: 1
                             }

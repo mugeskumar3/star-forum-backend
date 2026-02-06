@@ -40,7 +40,7 @@ export class Member {
     @Column()
     membershipId: string;
 
-    @Column()
+    @Column({ nullable: true })
     region: ObjectId;
 
     @Column()
@@ -49,10 +49,10 @@ export class Member {
     @Column()
     position: string;
 
-    @Column()
+    @Column({ nullable: true })
     businessCategory: ObjectId;
 
-    @Column()
+    @Column({ nullable: true })
     referredBy: ObjectId;
 
     @Column()
@@ -115,7 +115,7 @@ export class Member {
 
     @Column("simple-json", { nullable: true })
     awards: {
-        tenure: string;
+        tenure: Date;
         award: ObjectId;
     }[];
 
@@ -171,4 +171,7 @@ export class Member {
 
     @Column()
     pin: string;
+
+    @Column({ nullable: true })
+    deviceToken: string;
 }

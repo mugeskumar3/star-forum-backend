@@ -16,7 +16,7 @@ export async function seedDefaultAdmin() {
   defaultAdmin.email = "admin@starforum.in";
   defaultAdmin.companyName = "Star Forum";
   defaultAdmin.phoneNumber = "9988776655";
-  defaultAdmin.pin = await bcrypt.hash("2026", 10);
+  defaultAdmin.pin = await bcrypt.hash("2016", 10);
   defaultAdmin.role = "ADMIN";
   defaultAdmin.isActive = 1;
   defaultAdmin.isDelete = 0;

@@ -1,56 +1,59 @@
 import {
-    Entity,
-    ObjectIdColumn,
-    Column,
-    CreateDateColumn,
-    UpdateDateColumn
+  Entity,
+  ObjectIdColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import { ObjectId } from "mongodb";
 
 @Entity("mobile_chief_guest")
 export class MobileChiefGuest {
-    @ObjectIdColumn()
-    _id: ObjectId;
+  @ObjectIdColumn()
+  _id: ObjectId;
 
-    // 🔹 Visitor details
-    @Column()
-    chiefGuestName: string;
+  // 🔹 Visitor details
+  @Column()
+  chiefGuestName: string;
 
-    @Column()
-    contactNumber: string;
+  @Column()
+  contactNumber: string;
 
-    // 🔹 Business category (lookup)
-    @Column()
-    businessCategory: string;
-    // 🔹 Visitor details
-    @Column()
-    businessName: string;
-    // 🔹 Source of event
-    @Column()
-    email: string;
+  // 🔹 Business category (lookup)
+  @Column()
+  businessCategory: string;
+  // 🔹 Visitor details
+  @Column()
+  businessName: string;
+  // 🔹 Source of event
+  @Column()
+  email: string;
 
-    @Column()
-    address: string;
-    // 🔹 Status
-    @Column({ default: "MAY_BE" })
-    status: "YES" | "MAY_BE" | "NO";
+  @Column()
+  address: string;
+  // 🔹 Status
+  @Column({ default: "Pending" })
+  status: "Approve" | "Reject" | "Pending" | "MAY_BE";
 
-    // 🔹 Audit
-    @Column()
-    createdBy: ObjectId;
+  // 🔹 Audit
+  @Column()
+  createdBy: ObjectId;
 
-    @Column()
-    updatedBy: ObjectId;
+  @Column()
+  sourceType: string;
 
-    @Column({ default: 1 })
-    isActive: number;
+  @Column()
+  updatedBy: ObjectId;
 
-    @Column({ default: 0 })
-    isDelete: number;
+  @Column({ default: 1 })
+  isActive: number;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @Column({ default: 0 })
+  isDelete: number;
 
-    @UpdateDateColumn()
-    updatedAt: Date;
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

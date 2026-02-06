@@ -36,8 +36,8 @@ export class ReferralController {
 
   private pointsRepo =
     AppDataSource.getMongoRepository(Points);
-  private memberRepository = 
-  AppDataSource.getMongoRepository(Member);
+  private memberRepository =
+    AppDataSource.getMongoRepository(Member);
 
   private userPointsRepo =
     AppDataSource.getMongoRepository(UserPoints);
@@ -485,31 +485,31 @@ export class ReferralController {
       return handleErrorResponse(error, res);
     }
   }
- @Get("/insideReferralProfile")
-async insideReferralProfile(
-  @Req() req: any,
-  @Res() res: Response
-) {
-  try {
-    const userId = new ObjectId(req.user.userId);
+  @Get("/insideReferralProfile")
+  async insideReferralProfile(
+    @Req() req: any,
+    @Res() res: Response
+  ) {
+    try {
+      const userId = new ObjectId(req.user.userId);
 
-    const profile = await this.memberRepository.findOne({
-      where: {
-        _id: userId,
-        isDelete: 0
+      const profile = await this.memberRepository.findOne({
+        where: {
+          _id: userId,
+          isDelete: 0
+        }
+      });
+
+      if (!profile) {
+        return response(
+          res,
+          StatusCodes.NOT_FOUND,
+          "Inside Refferal not found"
+        );
       }
-    });
 
-    if (!profile) {
-      return response(
-        res,
-        StatusCodes.NOT_FOUND,
-        "Inside Refferal not found"
-      );
-    }
-
-    const officeAddress = profile.officeAddress
-      ? [
+      const officeAddress = profile.officeAddress
+        ? [
           profile.officeAddress.doorNo,
           profile.officeAddress.oldNo,
           profile.officeAddress.street,
@@ -518,27 +518,90 @@ async insideReferralProfile(
           profile.officeAddress.state,
           profile.officeAddress.pincode
         ]
-          .filter(Boolean) 
+          .filter(Boolean)
           .join(", ")
-      : "";
+        : "";
 
-    const result = {
-      fullName: profile.fullName,
-      phoneNumber: profile.phoneNumber,
-      email: profile.email,
-      address: officeAddress
-    };
+      const result = {
+        fullName: profile.fullName,
+        phoneNumber: profile.phoneNumber,
+        email: profile.email,
+        address: officeAddress
+      };
 
-    return response(
-      res,
-      StatusCodes.OK,
-      "inside Refferal successfully",
-      result
-    );
+      return response(
+        res,
+        StatusCodes.OK,
+        "inside Refferal successfully",
+        result
+      );
 
-  } catch (error) {
-    return handleErrorResponse(error, res);
+    } catch (error) {
+      return handleErrorResponse(error, res);
+    }
   }
-}
+  @Patch("/:id")
+  async updateReferral(
+    @Param("id") id: string,
+    @Body() body: Partial<Referral>,
+    @Req() req: any,
+    @Res() res: Response
+  ) {
+    try {
+      const referralId = new ObjectId(id);
+
+      // 🔹 1. Check referral exists
+      const existingReferral = await this.referralRepo.findOne({
+        where: { _id: referralId, isDelete: 0 } as any
+      });
+
+      if (!existingReferral) {
+        return response(res, StatusCodes.NOT_FOUND, "Referral not found");
+      }
+
+      // 🔹 2. Build update object (only allowed fields)
+      const updateData: any = {};
+
+      const allowedFields = [
+        "referralFor",
+        "chapterId",
+        "toMemberId",
+        "referralType",
+        "toldWouldCall",
+        "givenCard",
+        "referralName",
+        "telephone",
+        "email",
+        "address",
+        "rating",
+        "comments",
+        "status"
+      ];
+
+      for (const key of allowedFields) {
+        if (body[key] !== undefined && body[key] !== null) {
+          updateData[key] = body[key];
+        }
+      }
+
+      // 🔹 Convert ObjectId values
+      if (updateData.toMemberId) updateData.toMemberId = new ObjectId(updateData.toMemberId);
+      if (updateData.chapterId) updateData.chapterId = new ObjectId(updateData.chapterId);
+
+      updateData.updatedBy = new ObjectId(req.user.userId);
+      updateData.updatedAt = new Date();
+
+      // 🔹 3. Update referral
+      const result = await this.referralRepo.updateOne(
+        { _id: referralId },
+        { $set: updateData }
+      );
+
+      return response(res, StatusCodes.OK, "Referral updated successfully", result);
+
+    } catch (error) {
+      return handleErrorResponse(error, res);
+    }
+  }
 
 }

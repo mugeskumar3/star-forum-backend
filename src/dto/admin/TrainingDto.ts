@@ -5,7 +5,8 @@ import {
     IsNumber,
     IsString,
     IsDateString,
-    IsOptional
+    IsOptional,
+    Min
 } from "class-validator";
 import { TrainingStatus } from "../../enum/TrainingStatus";
 import { Type } from "class-transformer";
@@ -18,9 +19,14 @@ export class CreateTrainingDto {
     @IsString()
     title: string;
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsString()
     description: string;
+
+    @IsNotEmpty()
+      @IsNumber()
+      @Min(0)
+      trainingFee: number;
 
     @IsArray()
     trainerIds: string[];
@@ -88,4 +94,10 @@ export class UpdateTrainingDto {
     @IsOptional()
     @Type(() => Number)
     isDelete?: number;
+
+    @IsNotEmpty()
+      @IsNumber()
+      @Min(0)
+      trainingFee: number;
+
 }

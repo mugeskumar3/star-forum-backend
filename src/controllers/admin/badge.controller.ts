@@ -9,7 +9,8 @@ import {
   Res,
   QueryParams,
   UseBefore,
-  Req
+  Req,
+  Patch
 } from "routing-controllers";
 import { Response } from "express";
 import { ObjectId } from "mongodb";
@@ -75,38 +76,70 @@ export class BadgeController {
   }
 
   @Get("/")
-  async getAllBadges(@QueryParams() query: any, @Res() res: Response) {
+  async getAllBadges(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
     try {
+
       const page = Number(query.page ?? 0);
       const limit = Number(query.limit ?? 0);
 
-      const match = { isDelete: 0 };
+      const type =
+        query.type && query.type !== "undefined"
+          ? query.type.toString()
+          : null;
 
-      const operation: any[] = [];
+      const match: any = { isDelete: 0 };
 
-      operation.push({ $match: match }, { $sort: { createdAt: -1 } },);
+      if (type) {
+        match.type = type;
+      }
+
+      const pipeline: any[] = [
+        { $match: match },
+        {
+          $sort: {
+            isActive: -1,
+            createdAt: -1
+          }
+        },
+      ];
 
       if (limit > 0) {
-        operation.push(
+        pipeline.push(
           { $skip: page * limit },
           { $limit: limit }
         );
       }
 
-      const badges = await this.badgeRepository
-        .aggregate(operation)
-        .toArray();
+      const badges =
+        await this.badgeRepository.aggregate(pipeline).toArray();
 
       const totalCount =
         await this.badgeRepository.countDocuments(match);
 
-      return pagination(totalCount, badges, limit, page, res);
+      // 🔥 No pagination
+      if (limit === 0) {
+        return response(
+          res,
+          StatusCodes.OK,
+          "Badges fetched successfully",
+          badges
+        );
+      }
+      return pagination(
+        totalCount,
+        badges,
+        limit,
+        page,
+        res
+      );
 
     } catch (error) {
       return handleErrorResponse(error, res);
     }
   }
-
 
   @Get("/active")
   async getActiveBadges(@Res() res: Response) {
@@ -244,7 +277,7 @@ export class BadgeController {
     }
   }
 
-  @Put("/:id/toggle-active")
+  @Patch("/:id/toggle-active")
   async toggleActive(@Param("id") id: string, @Res() res: Response) {
     try {
       const badge = await this.badgeRepository.findOneBy({
@@ -408,7 +441,7 @@ export class BadgeController {
         { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
-            from: "chapter",
+            from: "chapters",
             localField: "assignToId",
             foreignField: "_id",
             as: "chapter"
@@ -434,11 +467,12 @@ export class BadgeController {
                 { $eq: ["$assignTo", "MEMBER"] },
                 {
                   id: "$member._id",
-                  name: "$member.fullName"
+                  name: "$member.fullName",
+                  phoneNumber: "$member.phoneNumber"
                 },
                 {
                   id: "$chapter._id",
-                  name: "$chapter.name"
+                  name: "$chapter.chapterName"
                 }
               ]
             }

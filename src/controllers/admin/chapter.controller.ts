@@ -9,7 +9,8 @@ import {
   QueryParams,
   Res,
   Req,
-  UseBefore
+  UseBefore,
+  Patch
 } from "routing-controllers";
 import { Response } from "express";
 import { ObjectId } from "mongodb";
@@ -22,11 +23,23 @@ import pagination from "../../utils/pagination";
 import response from "../../utils/response";
 import handleErrorResponse from "../../utils/commonFunction";
 import { CreateChapterDto, UpdateChapterDto } from "../../dto/admin/Chapter.dto";
+import { ThankYouSlip } from "../../entity/ThankyouSlip";
+import { Member } from "../../entity/Member";
+import { OneToOneMeeting } from "../../entity/121's";
+import { PowerDate } from "../../entity/PowerDate";
+import { Visitor } from "../../entity/Visitor";
+import { Referral } from "../../entity/Referral";
 
 @UseBefore(AuthMiddleware)
 @JsonController("/chapters")
 export class ChapterController {
   private chapterRepository = AppDataSource.getMongoRepository(Chapter);
+  private thankyouRepo = AppDataSource.getMongoRepository(ThankYouSlip);
+  private memberRepo = AppDataSource.getMongoRepository(Member)
+  private oneToOneRepo = AppDataSource.getMongoRepository(OneToOneMeeting)
+  private powerDateRepo = AppDataSource.getMongoRepository(PowerDate)
+  private visitorRepo = AppDataSource.getMongoRepository(Visitor)
+  private referralRepo = AppDataSource.getMongoRepository(Referral)
 
   @Post("/")
   async createChapter(
@@ -45,6 +58,8 @@ export class ChapterController {
         location: body.location,
         weekday: body.weekday,
         meetingType: body.meetingType,
+        absentLimit: body.absentLimit,
+        proxyLimit: body.proxyLimit,
         isActive: body.isActive ?? 1,
         isDelete: 0,
         createdBy: new ObjectId(req.user.userId),
@@ -127,11 +142,11 @@ export class ChapterController {
 
         {
           $lookup: {
-            from: "adminusers",
+            from: "member",
             let: { edId: "$edId" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$edId"] } } },
-              { $project: { _id: 0, name: 1 } }
+              { $project: { _id: 0, name: "$fullName" } }
             ],
             as: "ed"
           }
@@ -140,11 +155,11 @@ export class ChapterController {
 
         {
           $lookup: {
-            from: "adminusers",
+            from: "member",
             let: { rdId: "$rdId" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$rdId"] } } },
-              { $project: { _id: 0, name: 1 } }
+              { $project: { _id: 0, name: "$fullName" } }
             ],
             as: "rd"
           }
@@ -205,7 +220,15 @@ export class ChapterController {
         });
       }
 
-      pipeline.push({ $sort: { createdAt: -1 } });
+       pipeline.push(
+      { $match: match },
+      {
+        $sort: {
+          isActive: -1,  
+          createdAt: -1 
+        }
+      }
+    )
 
       pipeline.push({
         $facet: {
@@ -220,6 +243,8 @@ export class ChapterController {
                 location: 1,
                 weekday: 1,
                 meetingType: 1,
+                absentLimit: 1,
+                proxyLimit: 1,
                 isActive: 1,
                 zoneId: 1,
                 zoneName: 1,
@@ -264,13 +289,20 @@ export class ChapterController {
     @Res() res: Response
   ) {
     try {
-      const match = {
-        _id: new ObjectId(id),
-        isDelete: 0
-      };
+
+      if (!ObjectId.isValid(id)) {
+        return response(res, StatusCodes.BAD_REQUEST, "Invalid chapter id");
+      }
 
       const pipeline: any[] = [
-        { $match: match },
+
+        {
+          $match: {
+            _id: new ObjectId(id),
+            isDelete: 0
+          }
+        },
+
         {
           $lookup: {
             from: "zones",
@@ -299,11 +331,11 @@ export class ChapterController {
 
         {
           $lookup: {
-            from: "adminusers",
+            from: "member",
             let: { edId: "$edId" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$edId"] } } },
-              { $project: { _id: 0, name: 1 } }
+              { $project: { _id: 0, name: "$fullName" } }
             ],
             as: "ed"
           }
@@ -312,11 +344,11 @@ export class ChapterController {
 
         {
           $lookup: {
-            from: "adminusers",
+            from: "member",
             let: { rdId: "$rdId" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$rdId"] } } },
-              { $project: { _id: 0, name: 1 } }
+              { $project: { _id: 0, name: "$fullName" } }
             ],
             as: "rd"
           }
@@ -348,6 +380,36 @@ export class ChapterController {
           }
         },
         { $unwind: { path: "$updatedByUser", preserveNullAndEmptyArrays: true } },
+
+        {
+          $lookup: {
+            from: "member",
+            let: { chapterId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$chapter", "$$chapterId"] },
+                      { $eq: ["$isActive", 1] },
+                      { $eq: ["$isDelete", 0] }
+                    ]
+                  }
+                }
+              },
+              { $count: "total" }
+            ],
+            as: "memberStats"
+          }
+        },
+
+        {
+          $addFields: {
+            totalMembers: {
+              $ifNull: [{ $arrayElemAt: ["$memberStats.total", 0] }, 0]
+            }
+          }
+        },
         {
           $project: {
             chapterName: 1,
@@ -355,19 +417,28 @@ export class ChapterController {
             location: 1,
             weekday: 1,
             meetingType: 1,
+            absentLimit: 1,
+            proxyLimit: 1,
             isActive: 1,
+
             zoneId: 1,
             zoneName: "$zone.name",
             country: "$zone.country",
             state: "$zone.state",
+
             regionId: 1,
             regionName: "$region.region",
+
             edId: 1,
             edName: "$ed.name",
+
             rdId: 1,
             rdName: "$rd.name",
+
             createdByName: "$createdByUser.name",
-            updatedByName: "$updatedByUser.name"
+            updatedByName: "$updatedByUser.name",
+
+            totalMembers: 1
           }
         }
       ];
@@ -391,6 +462,7 @@ export class ChapterController {
       return handleErrorResponse(error, res);
     }
   }
+
 
 
   @Put("/:id")
@@ -423,6 +495,8 @@ export class ChapterController {
       if (body.rdId) updateData.rdId = new ObjectId(body.rdId);
       if (body.createdDate)
         updateData.createdDate = new Date(body.createdDate);
+      if (body.absentLimit !== undefined) updateData.absentLimit = body.absentLimit;
+      if (body.proxyLimit !== undefined) updateData.proxyLimit = body.proxyLimit;
 
       delete updateData._id;
       delete updateData.id;
@@ -474,6 +548,635 @@ export class ChapterController {
         res,
         StatusCodes.OK,
         "Chapter deleted successfully"
+      );
+    } catch (error) {
+      return handleErrorResponse(error, res);
+    }
+  }
+  @Get("/chapter-revenue/list")
+  async getChapterRevenue(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
+    try {
+
+      const chapterId = query.chapterId;
+
+      if (!chapterId || !ObjectId.isValid(chapterId)) {
+        return response(res, 400, "Valid chapterId required");
+      }
+
+      const pipeline: any[] = [
+
+        { $match: { isDelete: 0, isActive: 1 } },
+
+        {
+          $lookup: {
+            from: "member",
+            localField: "thankTo",
+            foreignField: "_id",
+            as: "member"
+          }
+        },
+        { $unwind: "$member" },
+
+        {
+          $match: {
+            "member.chapter": new ObjectId(chapterId)
+          }
+        },
+
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" }
+            },
+            amount: { $sum: "$amount" }
+          }
+        },
+
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+
+        {
+          $project: {
+            _id: 0,
+            year: "$_id.year",
+            month: "$_id.month",
+            amount: 1
+          }
+        }
+      ];
+
+      const monthly =
+        await this.thankyouRepo.aggregate(pipeline).toArray();
+
+      const totalRevenue =
+        monthly.reduce((s, m) => s + m.amount, 0);
+
+      return response(res, 200, "Chapter revenue fetched", {
+        totalRevenue,
+        monthly
+      });
+
+    } catch (err) {
+      console.error(err);
+      return response(res, 500, "Failed to fetch revenue");
+    }
+  }
+  @Get("/chapterbased/ed-rd-members")
+  async getChapterEdRdMembers(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
+    try {
+
+      const { chapterId } = query;
+
+      if (!chapterId || !ObjectId.isValid(chapterId)) {
+        return response(res, 400, "Valid chapterId is required");
+      }
+
+      const pipeline: any[] = [
+        {
+          $match: {
+            _id: new ObjectId(chapterId),
+            isDelete: 0
+          }
+        },
+        {
+          $project: {
+            edId: 1,
+            rdId: 1
+          }
+        },
+        {
+          $lookup: {
+            from: "member",
+            let: {
+              edId: "$edId",
+              rdId: "$rdId"
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $in: ["$_id", ["$$edId", "$$rdId"]]
+                  }
+                }
+              },
+              {
+                $lookup: {
+                  from: "roles",
+                  let: { roleId: "$roleId" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $and: [
+                            { $eq: ["$_id", "$$roleId"] },
+                            { $eq: ["$isDelete", 0] }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      $project: {
+                        _id: 0,
+                        name: 1,
+                        code: 1
+                      }
+                    }
+                  ],
+                  as: "role"
+                }
+              },
+              { $unwind: "$role" },
+              {
+                $project: {
+                  _id: 1,
+                  fullName: 1,
+                  profileImage: 1,
+                  phoneNumber: 1,
+                  email: 1,
+                  roleName: "$role.name",
+                  roleCode: "$role.code"
+                }
+              }
+            ],
+            as: "members"
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            members: 1
+          }
+        }
+
+      ];
+
+      const result =
+        await this.chapterRepository.aggregate(pipeline).toArray();
+
+      return response(
+        res,
+        200,
+        "Chapter ED & RD members fetched",
+        result[0]?.members || []
+      );
+
+    } catch (error) {
+      console.error(error);
+      return response(res, 500, "Failed to fetch chapter ED/RD members");
+    }
+  }
+
+  @Get("/chapter-stats/details")
+  async getChapterStats(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
+    try {
+
+      const { chapterId } = query;
+
+      if (!chapterId || !ObjectId.isValid(chapterId)) {
+        return response(res, 400, "Valid chapterId required");
+      }
+
+      const chapterObjectId = new ObjectId(chapterId);
+
+      const members = await this.memberRepo.find({
+        where: {
+          chapter: chapterObjectId,
+          isDelete: 0,
+          isActive: 1
+        } as any,
+        select: ["_id"]
+      });
+
+      const memberIds = members.map(m => m.id);
+
+      if (!memberIds.length) {
+        return response(res, StatusCodes.OK, "Success", {
+          powerDates: 0,
+          referrals: 0,
+          visitors: 0,
+          oneToOnes: 0,
+          thankYouSlips: 0,
+          businessGiven: 0
+        });
+      }
+
+
+      const [
+        powerDates,
+        referrals,
+        visitors,
+        oneToOnes,
+        thankYouSlips
+      ] = await Promise.all([
+
+        // Power Date
+        this.powerDateRepo.countDocuments({
+          members: { $in: memberIds },
+          isDelete: 0,
+          isActive: 1
+        }),
+
+        // Referrals
+        this.referralRepo.countDocuments({
+          fromMemberId: { $in: memberIds },
+          isDelete: 0
+        }),
+
+        // Visitors
+        this.visitorRepo.countDocuments({
+          chapterId: chapterObjectId,
+          isDelete: 0
+        }),
+
+        // 1-2-1
+        this.oneToOneRepo.countDocuments({
+          initiatedById: { $in: memberIds },
+          isDelete: 0,
+          isActive: 1
+        }),
+
+        // Thank You Slips
+        this.thankyouRepo.countDocuments({
+          thankTo: { $in: memberIds },
+          isDelete: 0,
+          isActive: 1
+        })
+
+      ]);
+
+      const businessAgg = await this.thankyouRepo.aggregate([
+        {
+          $match: {
+            createdBy: { $in: memberIds },
+            isDelete: 0,
+            isActive: 1
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" }
+          }
+        }
+      ]).toArray();
+
+      const businessGiven = businessAgg[0]?.total || 0;
+
+      return response(res, StatusCodes.OK, "Success", {
+        powerDates,
+        referrals,
+        visitors,
+        oneToOnes,
+        thankYouSlips,
+        businessGiven
+      });
+
+    } catch (err) {
+      console.error(err);
+      return response(res, 500, "Failed to fetch dashboard");
+    }
+  }
+  @Get("/top/1to1-members")
+  async top1To1Members(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
+    try {
+
+      const chapterId = query.chapterId;
+
+      if (!chapterId || !ObjectId.isValid(chapterId)) {
+        return response(res, 400, "Valid chapterId required");
+      }
+
+      const pipeline: any[] = [
+
+        // only active meetings
+        {
+          $match: {
+            isDelete: 0,
+            isActive: 1
+          }
+        },
+
+        // join member
+        {
+          $lookup: {
+            from: "member",
+            localField: "initiatedById",
+            foreignField: "_id",
+            as: "member"
+          }
+        },
+        { $unwind: "$member" },
+
+        // chapter filter
+        {
+          $match: {
+            "member.chapter": new ObjectId(chapterId)
+          }
+        },
+
+        // group by member
+        {
+          $group: {
+            _id: "$initiatedById",
+            count: { $sum: 1 },
+            fullName: { $first: "$member.fullName" },
+            profileImage: { $first: "$member.profileImage" }
+          }
+        },
+
+        // use facet for top3 + total
+        {
+          $facet: {
+
+            topMembers: [
+              { $sort: { count: -1 } },
+              { $limit: 3 },
+              {
+                $project: {
+                  _id: 0,
+                  memberId: "$_id",
+                  fullName: 1,
+                  profileImage: 1,
+                  count: 1
+                }
+              }
+            ],
+
+            totalCount: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: "$count" }
+                }
+              }
+            ]
+
+          }
+        }
+      ];
+
+      const result =
+        await this.oneToOneRepo.aggregate(pipeline).toArray();
+
+      const topMembers = result[0]?.topMembers || [];
+      const total =
+        result[0]?.totalCount[0]?.total || 0;
+
+      return response(res, 200, "Top 1-2-1 members fetched", {
+        total,
+        topMembers
+      });
+
+    } catch (err) {
+      console.error(err);
+      return response(res, 500, "Failed to fetch top members");
+    }
+  }
+  @Get("/top/referral-members")
+  async topReferralMembers(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
+    try {
+
+      const chapterId = query.chapterId;
+
+      if (!chapterId || !ObjectId.isValid(chapterId)) {
+        return response(res, 400, "Valid chapterId required");
+      }
+
+      const pipeline: any[] = [
+
+        {
+          $match: {
+            isDelete: 0
+          }
+        },
+
+        {
+          $lookup: {
+            from: "member",
+            let: { fromId: "$fromMemberId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$_id", "$$fromId"] }
+                }
+              },
+              {
+                $project: {
+                  _id: 1,
+                  fullName: 1,
+                  profileImage: 1,
+                  chapter: 1
+                }
+              }
+            ],
+            as: "member"
+          }
+        },
+        { $unwind: "$member" },
+
+        {
+          $match: {
+            "member.chapter": new ObjectId(chapterId)
+          }
+        },
+
+        {
+          $group: {
+            _id: "$fromMemberId",
+            count: { $sum: 1 },
+            fullName: { $first: "$member.fullName" },
+            profileImage: { $first: "$member.profileImage" }
+          }
+        },
+
+        {
+          $facet: {
+
+            topMembers: [
+              { $sort: { count: -1 } },
+              { $limit: 3 },
+              {
+                $project: {
+                  _id: 0,
+                  memberId: "$_id",
+                  fullName: 1,
+                  profileImage: 1,
+                  count: 1
+                }
+              }
+            ],
+
+            totalCount: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: "$count" }
+                }
+              }
+            ]
+
+          }
+        }
+      ];
+
+      const result =
+        await this.referralRepo.aggregate(pipeline).toArray();
+
+      const topMembers = result[0]?.topMembers || [];
+      const total =
+        result[0]?.totalCount[0]?.total || 0;
+
+      return response(res, 200, "Top referral members fetched", {
+        total,
+        topMembers
+      });
+
+    } catch (err) {
+      console.error(err);
+      return response(res, 500, "Failed to fetch top referral members");
+    }
+  }
+  @Get("/top/thankyou-members")
+  async topThankYouMembers(
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
+    try {
+
+      const chapterId = query.chapterId;
+
+      if (!chapterId || !ObjectId.isValid(chapterId)) {
+        return response(res, 400, "Valid chapterId required");
+      }
+
+      const pipeline: any[] = [
+        {
+          $match: {
+            isDelete: 0,
+            isActive: 1
+          }
+        },
+        {
+          $lookup: {
+            from: "member",
+            let: { memberId: "$thankTo" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$_id", "$$memberId"] }
+                }
+              },
+              {
+                $project: {
+                  _id: 1,
+                  fullName: 1,
+                  profileImage: 1,
+                  chapter: 1
+                }
+              }
+            ],
+            as: "member"
+          }
+        },
+        { $unwind: "$member" },
+
+        {
+          $match: {
+            "member.chapter": new ObjectId(chapterId)
+          }
+        },
+
+        {
+          $group: {
+            _id: "$thankTo",
+            count: { $sum: 1 },
+            fullName: { $first: "$member.fullName" },
+            profileImage: { $first: "$member.profileImage" }
+          }
+        },
+
+        {
+          $facet: {
+
+            topMembers: [
+              { $sort: { count: -1 } },
+              { $limit: 3 },
+              {
+                $project: {
+                  _id: 0,
+                  memberId: "$_id",
+                  fullName: 1,
+                  profileImage: 1,
+                  count: 1
+                }
+              }
+            ],
+
+            totalCount: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: "$count" }
+                }
+              }
+            ]
+
+          }
+        }
+
+      ];
+
+      const result =
+        await this.thankyouRepo.aggregate(pipeline).toArray();
+
+      const topMembers = result[0]?.topMembers || [];
+      const total =
+        result[0]?.totalCount[0]?.total || 0;
+
+      return response(res, 200, "Top thank you members fetched", {
+        total,
+        topMembers
+      });
+
+    } catch (err) {
+      console.error(err);
+      return response(res, 500, "Failed to fetch top thank you members");
+    }
+  }
+   @Patch("/:id/toggle-active")
+  async toggleActive(@Param("id") id: string, @Res() res: Response) {
+    try {
+      const chapter = await this.chapterRepository.findOneBy({
+        _id: new ObjectId(id),
+        isDelete: 0
+      });
+
+      if (!chapter) {
+        return response(res, StatusCodes.NOT_FOUND, "Chapter not found");
+      }
+
+      chapter.isActive = chapter.isActive === 1 ? 0 : 1;
+      const updatedChapter = await this.chapterRepository.save(chapter);
+      return response(
+        res,
+        StatusCodes.OK,
+        `Chapter ${chapter.isActive === 1 ? "enabled" : "disabled"} successfully`,
+        updatedChapter
       );
     } catch (error) {
       return handleErrorResponse(error, res);

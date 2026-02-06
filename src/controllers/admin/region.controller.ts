@@ -134,14 +134,14 @@ export class RegionController {
 
         {
           $lookup: {
-            from: "adminusers",
+            from: "member",
             let: { edId: "$edId" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$edId"] } } },
               {
                 $project: {
                   _id: 1,
-                  name: 1
+                  name: "$fullName"
                 }
               }
             ],
@@ -151,14 +151,14 @@ export class RegionController {
         { $unwind: { path: "$ed", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
-            from: "adminusers",
+            from: "member",
             let: { rdIds: "$rdIds" },
             pipeline: [
               { $match: { $expr: { $in: ["$_id", "$$rdIds"] } } },
               {
                 $project: {
                   _id: 1,
-                  name: 1
+                  name: "$fullName"
                 }
               }
             ],
@@ -182,9 +182,12 @@ export class RegionController {
           }
         },
         { $unwind: { path: "$createdByUser", preserveNullAndEmptyArrays: true } },
-
-        { $sort: { createdAt: -1 } },
-
+        {
+          $sort: {
+            isActive: -1,
+            createdAt: -1
+          }
+        },
         {
           $facet: {
             data: [
@@ -264,11 +267,11 @@ export class RegionController {
         { $unwind: { path: "$zone", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
-            from: "adminusers",
+            from: "member",
             let: { edId: "$edId" },
             pipeline: [
               { $match: { $expr: { $eq: ["$_id", "$$edId"] } } },
-              { $project: { _id: 1, name: 1 } }
+              { $project: { _id: 1, name: "$fullName" } }
             ],
             as: "ed"
           }
@@ -276,11 +279,11 @@ export class RegionController {
         { $unwind: { path: "$ed", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
-            from: "adminusers",
+            from: "member",
             let: { rdIds: "$rdIds" },
             pipeline: [
               { $match: { $expr: { $in: ["$_id", "$$rdIds"] } } },
-              { $project: { _id: 1, name: 1 } }
+              { $project: { _id: 1, name: "$fullName" } }
             ],
             as: "rds"
           }

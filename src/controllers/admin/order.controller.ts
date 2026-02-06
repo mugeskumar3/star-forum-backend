@@ -30,9 +30,6 @@ export class OrderController {
 
     private orderRepository = AppDataSource.getMongoRepository(Order);
 
-    // --------------------------------------------------
-    // CREATE ORDER
-    // --------------------------------------------------
     @Post("/create")
     async createOrder(
         @Req() req: RequestWithUser,
@@ -82,9 +79,6 @@ export class OrderController {
         }
     }
 
-    // --------------------------------------------------
-    // EDIT ORDER
-    // --------------------------------------------------
     @Put("/edit/:id")
     async editOrder(
         @Param("id") id: string,
@@ -140,9 +134,7 @@ export class OrderController {
             );
         }
     }
-    // --------------------------------------------------
-    // EDIT ORDER
-    // --------------------------------------------------
+
     @Put("/status/:id")
     async orderStatus(
         @Param("id") id: string,
@@ -187,9 +179,7 @@ export class OrderController {
             );
         }
     }
-    // --------------------------------------------------
-    // LIST ORDERS
-    // --------------------------------------------------
+
     @Get("/list")
     async listOrders(
         @Req() req: RequestWithUser,
@@ -203,6 +193,7 @@ export class OrderController {
             const regionId = req.query.regionId?.toString();
             const chapterId = req.query.chapterId?.toString();
             const memberId = req.query.memberId?.toString();
+            const search = req.query.search?.trim();
 
             const match: any = { isDelete: 0 };
 
@@ -327,7 +318,18 @@ export class OrderController {
                         }
                     }
                 },
-
+                ...(search ? [{
+                    $match: {
+                        $or: [
+                            { orderId: { $regex: search, $options: "i" } },
+                            { memberName: { $regex: search, $options: "i" } },
+                            { phoneNumber: { $regex: search, $options: "i" } },
+                            { status: { $regex: search, $options: "i" } },
+                            { paymentStatus: { $regex: search, $options: "i" } },
+                            { totalQty: { $regex: search, $options: "i" } },
+                        ]
+                    }
+                }] : []),
                 { $sort: { orderDate: -1 } },
 
                 {

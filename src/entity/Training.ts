@@ -22,7 +22,7 @@ export class Training {
   @Column()
   title: string;
 
-  @Column()
+  @Column({ nullable: true })
   description: string;
 
   @Column()
@@ -36,6 +36,9 @@ export class Training {
 
   @Column()
   duration: string;
+
+  @Column("double")
+  trainingFee: number;
 
   @Column()
   mode: "online" | "in-person";
@@ -68,4 +71,11 @@ export class Training {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column("simple-json", { nullable: true })
+  qrImage?: {
+    fileName?: string;
+    Path?: string;
+    originalName?: string;
+  };
 }

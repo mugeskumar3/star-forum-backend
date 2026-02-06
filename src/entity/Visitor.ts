@@ -44,6 +44,9 @@ export class Visitor {
     chapterId: ObjectId;
 
     @Column()
+    sourceType: string;
+
+    @Column()
     updatedBy: ObjectId;
 
     @Column({ default: 1 })

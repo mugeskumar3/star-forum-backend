@@ -9,12 +9,15 @@ import {
   Res,
   QueryParams,
   UseBefore,
-  Req
+  Req,
+  Patch
 } from "routing-controllers";
 import { Response } from "express";
 import { ObjectId } from "mongodb";
 import { StatusCodes } from "http-status-codes";
-
+import * as QRCode from "qrcode";
+import * as fs from "fs";
+import * as path from "path";
 import { AppDataSource } from "../../data-source";
 import { AuthMiddleware } from "../../middlewares/AuthMiddleware";
 import response from "../../utils/response";
@@ -24,15 +27,42 @@ import { Training } from "../../entity/Training";
 import { CreateTrainingDto, UpdateTrainingDto } from "../../dto/admin/TrainingDto";
 import { AuthPayload } from "../../middlewares/AuthMiddleware";
 import { generateTrainingId } from "../../utils/id.generator";
+import { TrainingParticipants } from "../../entity/TrainingParticipants";
+import { ApiError } from "../../utils";
 
 interface RequestWithUser extends Request {
   user: AuthPayload;
 }
 
+const generateMeetingQR = async (trainingId: string) => {
+  const uploadDir = path.join(process.cwd(), "public", "training", "qr");
+
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  const fileName = `training-${trainingId}.png`;
+  const filePath = path.join(uploadDir, fileName);
+
+  const qrData = `meetingId=${trainingId}`;
+
+  await QRCode.toFile(filePath, qrData, {
+    width: 300,
+    margin: 2,
+  });
+
+  return {
+    fileName,
+    path: `/training/qr/${fileName}`,
+    originalName: fileName,
+  };
+};
+
 @UseBefore(AuthMiddleware)
 @JsonController("/training")
 export class TrainingController {
   private trainingRepository = AppDataSource.getMongoRepository(Training);
+  private participantsRepository = AppDataSource.getMongoRepository(TrainingParticipants);
 
   @Post("/")
   async createTraining(
@@ -66,13 +96,18 @@ export class TrainingController {
       training.locationOrLink = body.locationOrLink;
       training.maxAllowed = body.maxAllowed;
       training.status = body.status;
+      training.trainingFee = body.trainingFee;
       training.isActive = 1;
       training.isDelete = 0;
       training.createdBy = new ObjectId(req.user.userId);
       training.updatedBy = new ObjectId(req.user.userId);
 
       const savedTraining = await this.trainingRepository.save(training);
+      const qrImage = await generateMeetingQR(savedTraining.id.toString());
 
+      await this.trainingRepository.update(savedTraining.id, { qrImage });
+
+      savedTraining.qrImage = qrImage;
       return response(
         res,
         StatusCodes.CREATED,
@@ -90,11 +125,46 @@ export class TrainingController {
     @Res() res: Response
   ) {
     try {
-      const page = Number(query.page ?? 0);
-      const limit = Number(query.limit ?? 0);
 
-      const match = { isDelete: 0 };
-      const pipeline: any[] = [{ $match: match }];
+      const page = Math.max(Number(query.page) || 0, 0);
+      const limit = Math.max(Number(query.limit) || 0, 0);
+      const search = query.search?.toString();
+
+      const match: any = {
+        isDelete: 0
+      };
+
+      // 🔍 SEARCH
+      if (search) {
+        match.$or = [
+          { trainingId: { $regex: search, $options: "i" } },
+          { title: { $regex: search, $options: "i" } },
+          { description: { $regex: search, $options: "i" } },
+          { status: { $elemMatch: { $regex: search, $options: "i" } } },
+
+          // search trainingFee as string
+          {
+            $expr: {
+              $regexMatch: {
+                input: { $toString: "$trainingFee" },
+                regex: search,
+                options: "i"
+              }
+            }
+          }
+        ];
+      }
+
+      const pipeline: any[] = [
+        { $match: match },
+
+        {
+          $sort: {
+            isActive: -1,
+            createdAt: -1
+          }
+        }
+      ];
 
       if (limit > 0) {
         pipeline.push(
@@ -103,14 +173,16 @@ export class TrainingController {
         );
       }
 
-      const trainings = await this.trainingRepository
-        .aggregate(pipeline)
-        .toArray();
+      const trainings =
+        await this.trainingRepository
+          .aggregate(pipeline)
+          .toArray();
 
       const totalCount =
         await this.trainingRepository.countDocuments(match);
 
       return pagination(totalCount, trainings, limit, page, res);
+
     } catch (error) {
       return handleErrorResponse(error, res);
     }
@@ -183,6 +255,8 @@ export class TrainingController {
       if (body.status !== undefined) training.status = body.status;
       if (body.isActive !== undefined) training.isActive = body.isActive;
 
+      if (body.trainingFee !== undefined) training.trainingFee = body.trainingFee;
+
       training.updatedBy = new ObjectId(req.user.userId);
 
       const updatedTraining = await this.trainingRepository.save(training);
@@ -226,7 +300,7 @@ export class TrainingController {
     }
   }
 
-  @Put("/:id/toggle-active")
+  @Patch("/:id/toggle-active")
   async toggleActive(
     @Param("id") id: string,
     @Res() res: Response
@@ -247,7 +321,7 @@ export class TrainingController {
       return response(
         res,
         StatusCodes.OK,
-        `Training ${training.isActive ? "activated" : "deactivated"} successfully`,
+        `Training ${training.isActive ? "enabled" : "disabled"} successfully`,
         updated
       );
     } catch (error) {
@@ -260,4 +334,132 @@ export class TrainingController {
     const id = await generateTrainingId();
     return response(res, StatusCodes.OK, 'Training Id Created successfully', id);
   }
+  @Get("/training-participants/:id")
+  async getAllTrainingsParticipants(
+    @Param('id') id: string,
+    @QueryParams() query: any,
+    @Res() res: Response
+  ) {
+    try {
+      const page = Number(query.page ?? 0);
+      const limit = Number(query.limit ?? 10);
+
+      const match = { isDelete: 0, trainingId: new ObjectId(id) };
+      const pipeline: any[] = [{ $match: match }];
+
+      if (limit > 0) {
+        pipeline.push(
+          { $skip: page * limit },
+          { $limit: limit }
+        );
+      }
+      pipeline.push(
+        {
+          $lookup: {
+            from: "member",
+            localField: "memberId",
+            foreignField: "_id",
+            pipeline: [
+              {
+                $lookup: {
+                  from: "chapters",
+                  localField: "chapter",
+                  foreignField: "_id",
+                  pipeline: [
+                    {
+                      $project: {
+                        _id: 0,
+                        chapterName: 1
+                      }
+                    }
+                  ],
+                  as: "chapterData"
+                }
+              },
+              { $unwind: { path: "$chapterData", preserveNullAndEmptyArrays: true } },
+
+              {
+                $project: {
+                  _id: 1,
+                  fullName: 1,
+                  profileImage: 1,
+                  phoneNumber: 1,
+                  email: 1,
+                  companyName: 1,
+                  chapterName: "$chapterData.chapterName"   // 💥 Push inside member
+                }
+              }
+            ],
+            as: "member"
+          }
+        }
+      );
+
+      const trainings = await this.participantsRepository
+        .aggregate(pipeline)
+        .toArray();
+
+      const totalCount =
+        await this.participantsRepository.countDocuments(match);
+
+      return pagination(totalCount, trainings, limit, page, res);
+    } catch (error) {
+      return handleErrorResponse(error, res);
+    }
+  }
+  @Put('/status/:id')
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: RequestWithUser,
+    @Res() res: Response
+  ) {
+    try {
+
+      const updateData: any = {
+        updatedBy: new ObjectId(req.user.userId),
+        updatedAt: new Date()
+      };
+
+      if (body.status !== undefined) {
+        updateData.status = body.status;
+      }
+
+      if (body.paymentStatus !== undefined) {
+        updateData.paymentStatus = body.paymentStatus;
+      }
+
+      if (!updateData.status && !updateData.paymentStatus) {
+        return response(
+          res,
+          StatusCodes.BAD_REQUEST,
+          "status or paymentStatus is required"
+        );
+      }
+
+      const result = await this.participantsRepository.findOneAndUpdate(
+        {
+          _id: new ObjectId(id),
+          isDelete: 0
+        },
+        { $set: updateData },
+        { returnDocument: "after" }
+      );
+
+      if (!result) {
+        throw new ApiError(400, "Training Participants data not found");
+      }
+
+      return response(
+        res,
+        StatusCodes.OK,
+        "Status Updated Successfully"
+      );
+
+    } catch (error) {
+      return handleErrorResponse(error, res);
+    }
+  }
+
+
 }

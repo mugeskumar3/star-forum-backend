@@ -40,6 +40,12 @@ export class Chapter {
     @Column()
     meetingType: MeetingType;
 
+    @Column({ nullable: true })
+    absentLimit: number;
+
+    @Column({ nullable: true })
+    proxyLimit: number;
+
     @Column()
     badgeIds?: ObjectId[];
 

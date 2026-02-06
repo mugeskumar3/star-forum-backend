@@ -1,10 +1,17 @@
-import { Entity, ObjectIdColumn,Column, CreateDateColumn, UpdateDateColumn } from "typeorm"
+import { Entity, ObjectIdColumn, Column, CreateDateColumn, UpdateDateColumn } from "typeorm"
 import { ObjectId } from "mongodb";
 @Entity("adminusers")
 export class AdminUser {
 
     @ObjectIdColumn()
     id: ObjectId
+
+    @Column("simple-json", { nullable: true })
+    profileImage?: {
+        fileName?: string;
+        path?: string;
+        originalName?: string;
+    };
 
     @Column()
     name: string
@@ -29,7 +36,7 @@ export class AdminUser {
 
     @Column()
     updatedBy: ObjectId;
-    
+
     @Column({ default: 1 })
     isActive: number
 

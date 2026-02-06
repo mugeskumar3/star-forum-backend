@@ -1,4 +1,4 @@
-import { Post, Body, Req, Res, UseBefore, JsonController, Put, Param, Get, Delete } from "routing-controllers";
+import { Post, Body, Req, Res, UseBefore, JsonController, Put, Param, Get, Delete, Patch } from "routing-controllers";
 import { ObjectId } from "mongodb";
 import { StatusCodes } from "http-status-codes";
 import path from "path";
@@ -176,7 +176,12 @@ export class ProductController {
 
             const pipeline = [
                 { $match: match },
-                { $sort: { createdAt: -1 } },
+                {
+                    $sort: {
+                        isActive: -1,
+                        createdAt: -1
+                    }
+                },
 
                 {
                     $lookup: {
@@ -361,6 +366,30 @@ export class ProductController {
                 StatusCodes.INTERNAL_SERVER_ERROR,
                 error.message || "Something went wrong"
             );
+        }
+    }
+    @Patch("/:id/toggle-active")
+    async toggleActive(@Param("id") id: string, @Res() res: Response) {
+        try {
+            const product = await this.productRepository.findOneBy({
+                _id: new ObjectId(id),
+                isDelete: 0
+            });
+
+            if (!product) {
+                return response(res, StatusCodes.NOT_FOUND, "Product not found");
+            }
+
+            product.isActive = product.isActive === 1 ? 0 : 1;
+            const updatedProduct = await this.productRepository.save(product);
+            return response(
+                res,
+                StatusCodes.OK,
+                `Product ${updatedProduct.isActive === 1 ? "enabled" : "disabled"} successfully`,
+                updatedProduct
+            );
+        } catch (error) {
+            return handleErrorResponse(error, res);
         }
     }
 }

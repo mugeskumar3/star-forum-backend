@@ -337,12 +337,14 @@ export class AuthController {
     @UseBefore(AuthMiddleware)
     async getLoginReport(
         @QueryParams() query: any,
+        @Req() req: RequestWithUser,
         @Res() res: Response
     ) {
         try {
 
             const page = Number(query.page ?? 0);
             const limit = Number(query.limit ?? 10);
+            const search = req.query.search?.toString();
 
             const match: any = {};
 
@@ -376,7 +378,16 @@ export class AuthController {
                         status: 1,
                         loginAt: 1
                     }
-                }
+                },
+                ...(search ? [{
+                    $match: {
+                        $or: [
+                            { userName: { $regex: search, $options: "i" } },
+                            { currentLocation: { $regex: search, $options: "i" } },
+                            { phoneNumber: { $regex: search, $options: "i" } }
+                        ]
+                    }
+                }] : []),
             ];
 
             if (limit > 0) {

@@ -4,19 +4,26 @@ import cors from "cors";
 import { useExpressServer } from "routing-controllers";
 import { AppDataSource } from "./data-source";
 import fileUpload from "express-fileupload";
+
 import { seedDefaultAdmin } from "./seed/admin";
 import { seedDefaultModules } from "./seed/modules";
 import { seedPoints } from "./seed/points";
 
+import "./cron/attendance.cron";
+import "./cron/training.cron";
+
 AppDataSource.initialize()
   .then(async () => {
+
     console.log("✅ Database connected");
+
     await seedDefaultAdmin();
     await seedDefaultModules();
     await seedPoints();
 
-
     const app = express();
+
+
     app.use("/public", express.static("public"));
 
     app.use(
@@ -24,7 +31,7 @@ AppDataSource.initialize()
         origin: "*",
         methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
         allowedHeaders: ["Origin", "Content-Type", "Authorization"],
-        credentials: true,
+        credentials: true
       })
     );
 
@@ -37,8 +44,6 @@ AppDataSource.initialize()
     );
 
     const isProd = process.env.NODE_ENV === "prod";
-
-    /* ✅ ADMIN API */
     useExpressServer(app, {
       routePrefix: "/api/admin",
       controllers: [
@@ -53,10 +58,10 @@ AppDataSource.initialize()
       ],
       defaultErrorHandler: false,
       validation: true,
-      classTransformer: true
+      classTransformer: true,
+
     });
 
-    /* ✅ MOBILE API */
     useExpressServer(app, {
       routePrefix: "/api/mobile",
       controllers: [
@@ -71,10 +76,9 @@ AppDataSource.initialize()
       ],
       defaultErrorHandler: false,
       validation: true,
-      classTransformer: true
+      classTransformer: true,
     });
 
-    /* ✅ HEALTH CHECK */
     app.get("/", (_req, res) => {
       res.status(200).json({
         status: "ok",
@@ -85,7 +89,6 @@ AppDataSource.initialize()
       });
     });
 
-    /* ✅ GLOBAL ERROR HANDLER */
     app.use((err, _req, res, _next) => {
       console.error(err);
       res.status(err.httpCode || 500).json({
@@ -94,10 +97,12 @@ AppDataSource.initialize()
       });
     });
 
-    const PORT = process.env.PORT || 5000;
+    const PORT = process.env.PORT || 4000;
+
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
+
   })
   .catch((error) => {
     console.error("❌ DB Error:", error);

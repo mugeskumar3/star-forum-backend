@@ -28,9 +28,12 @@ export class Role {
     @Column({ default: 0 })
     isDelete: number;
 
+    @Column({ default: false })
+    showForAdmin: boolean;
+
     @Column("json")
     permissions: {
-        moduleId: ObjectId;     // 🔥 reference Modules
+        moduleId: ObjectId;
         actions: {
             view: boolean;
             add: boolean;

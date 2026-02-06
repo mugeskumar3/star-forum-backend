@@ -6,7 +6,8 @@ import {
   IsMongoId,
   IsDateString,
   Min,
-  ValidateNested
+  ValidateNested,
+  IsOptional
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -54,6 +55,7 @@ export class CreateMeetingDto {
   // --------------------
   // CHAPTERS
   // --------------------
+  @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
   chapters: string[];

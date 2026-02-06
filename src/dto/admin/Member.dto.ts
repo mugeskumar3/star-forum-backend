@@ -11,12 +11,12 @@ import {
     IsNumber,
     IsIn,
 } from "class-validator";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import { ObjectId } from "mongodb";
 
 export class OfficeAddressDto {
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     doorNo: string;
 
     @IsString()
@@ -24,7 +24,7 @@ export class OfficeAddressDto {
     oldNo?: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     street: string;
 
     @IsString()
@@ -32,15 +32,15 @@ export class OfficeAddressDto {
     area?: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     city: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     state: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     pincode: string;
 }
 
@@ -53,8 +53,11 @@ export class TrainingDto {
 }
 
 export class AwardDto {
-    @IsString()
-    tenure: string;
+    @IsOptional()
+    @Transform(({ value }) => value === null ? undefined : value)
+    @Type(() => Date)
+    @IsDate()
+    tenure: Date;
 
     @IsString()
     award: ObjectId;
@@ -92,18 +95,22 @@ export class CreateMemberDto {
     @IsString()
     membershipId: string;
 
-    @IsMongoId()
-    region: string;
+    @IsOptional()
+    @IsMongoId({ message: "region must be valid ObjectId" })
+    region?: string;
 
-    @IsMongoId()
-    chapter: string;
+    @IsOptional()
+    @IsMongoId({ message: "chapter must be valid ObjectId" })
+    chapter?: string;
 
     @IsString()
     position: string;
 
+    @IsOptional()
     @IsMongoId()
     businessCategory: string;
 
+    @IsOptional()
     @IsMongoId()
     referredBy: string;
 
@@ -111,11 +118,13 @@ export class CreateMemberDto {
     @IsDate()
     dateOfBirth: Date;
 
+    @IsOptional()
+    @Transform(({ value }) => value === null ? undefined : value)
     @Type(() => Date)
     @IsDate()
     anniversary: Date;
 
-    // OFFICE ADDRESS
+    @IsOptional()
     @ValidateNested()
     @Type(() => OfficeAddressDto)
     officeAddress: OfficeAddressDto;
@@ -172,7 +181,6 @@ export class CreateMemberDto {
     @Type(() => AwardDto)
     awards?: AwardDto[];
 
-    @IsOptional()
     @IsString()
     roleId: ObjectId
     // CLUB MEMBER
@@ -188,6 +196,9 @@ export class UpdateMemberDto {
         path?: string;
         originalName?: string;
     };
+
+    @IsString()
+    roleId: ObjectId
 
     @IsOptional()
     @IsString()

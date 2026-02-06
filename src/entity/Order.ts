@@ -1,92 +1,100 @@
 import {
-    Entity,
-    ObjectIdColumn,
-    Column,
-    CreateDateColumn,
-    UpdateDateColumn
+  Entity,
+  ObjectIdColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import { ObjectId } from "mongodb";
 export enum OrderStatus {
-    PENDING = "Pending",
-    PROCESSING = "Processing",
-    DELIVERED = "Delivered",
-    CANCELLED = "Cancelled"
+  PENDING = "Pending",
+  PROCESSING = "Processing",
+  DELIVERED = "Delivered",
+  CANCELLED = "Cancelled",
 }
 
 export enum PaymentStatus {
-    PENDING = "Pending",
-    PAID = "Paid",
-    FAILED = "Failed"
+  PENDING = "Pending",
+  PAID = "Paid",
+  FAILED = "Failed",
 }
 
 @Entity("orders")
 export class Order {
+  @ObjectIdColumn()
+  id: ObjectId;
 
-    @ObjectIdColumn()
-    id: ObjectId;
+  // LOCATION
+  @Column()
+  zoneId: ObjectId;
 
-    // LOCATION
-    @Column()
-    zoneId: ObjectId;
+  @Column()
+  regionId: ObjectId;
 
-    @Column()
-    regionId: ObjectId;
+  @Column()
+  chapterId: ObjectId;
 
-    @Column()
-    chapterId: ObjectId;
+  // MEMBER
+  @Column()
+  memberId: ObjectId;
 
-    // MEMBER
-    @Column()
-    memberId: ObjectId;
+  // PRODUCT (single product for now)
+  @Column("simple-json", { nullable: true })
+  products: {
+    productId: ObjectId;
+    amount: number;
+    qty: number;
+    price: number;
+    total: number;
+  }[];
 
-    // PRODUCT (single product for now)
-    @Column("simple-json", { nullable: true })
-    products: {
-        productId: ObjectId;
-        amount: number;
-        qty: number;
-        price: number;
-        total: number;
-    }[];
+  @Column({ default: 0 })
+  grantTotal: number;
+  // SYSTEM
+  @Column({ default: 1 })
+  isActive: number;
 
-    @Column({ default: 0 })
-    grantTotal: number;
-    // SYSTEM
-    @Column({ default: 1 })
-    isActive: number;
+  @Column({ default: 0 })
+  isDelete: number;
 
-    @Column({ default: 0 })
-    isDelete: number;
+  @CreateDateColumn()
+  createdAt: Date;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @UpdateDateColumn()
+  updatedAt: Date;
 
-    @UpdateDateColumn()
-    updatedAt: Date;
+  @Column({ nullable: true })
+  createdBy?: ObjectId;
 
-    @Column({ nullable: true })
-    createdBy?: ObjectId;
+  @Column({ nullable: true })
+  updatedBy?: ObjectId;
 
-    @Column({ nullable: true })
-    updatedBy?: ObjectId;
+  // ORDER STATUS
+  @Column({
+    type: "enum",
+    enum: OrderStatus,
+    default: OrderStatus.PENDING,
+  })
+  status: OrderStatus;
 
-    // ORDER STATUS
-    @Column({
-        type: "enum",
-        enum: OrderStatus,
-        default: OrderStatus.PENDING
-    })
-    status: OrderStatus;
+  // PAYMENT STATUS
+  @Column({
+    type: "enum",
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
+  })
+  paymentStatus: PaymentStatus;
 
-    // PAYMENT STATUS
-    @Column({
-        type: "enum",
-        enum: PaymentStatus,
-        default: PaymentStatus.PENDING
-    })
-    paymentStatus: PaymentStatus;
+  @Column({
+    type: "enum",
+    enum: ["Offline", "Online"],
+    default: "Offline",
+  })
+  paymentMode: "Offline" | "Online";
 
-    @Column()
-    orderId?: string;
+  @Column({ nullable: true })
+  paymentProof: string;
+
+  @Column()
+  orderId?: string;
 }
-

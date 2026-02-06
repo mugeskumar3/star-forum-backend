@@ -40,7 +40,6 @@ export class ZoneController {
     @Res() res: Response
   ) {
     try {
-      console.log("BODY:", body);
       const exists = await this.zoneRepository.findOneBy({
         name: body.name,
         isDelete: 0

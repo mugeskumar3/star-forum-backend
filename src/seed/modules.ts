@@ -8,7 +8,6 @@ export async function seedDefaultModules() {
   const count = await moduleRepo.count();
 
   if (count > 0) {
-    console.log("ℹ️ Modules already exist. Skipping seeding.");
     return;
   }
 
@@ -16,32 +15,40 @@ export async function seedDefaultModules() {
     "Dashboard",
     "Roles & Permissions",
     "Admin Registration",
+    "Members Registration",
     "Organisation",
+    "Zone Creation",
     "Badge Creation",
     "Award",
     "Business Category",
-    "Zone Creation",
+    "Points",
     "Chapter Creation",
-    "Members Registration",
     "Meeting Creation",
     "Attendance List",
     "Community Update",
     "Star Update",
-    "Points",
+    "Mobile Ads",
     "Training",
-    "Shop Category",
-    "Shop Product",
-    "Shop Order",
+    "Category List",
+    "Create Product",
+    "Place Order",
+    "Orders List",
     "Log Report",
     "Renewal Report",
     "Chapter Report",
     "121’s Report",
     "Referral’s Report",
-    "Visitor’s Report",
+    "Visitor's Report",
+    "Absent & Proxy Report",
+    "Performance Report",
     "Chief Guest’s Report",
-    "Thank you Slip",
+    "Thank you Slip Report",
     "Power Date",
-    "Testimonials",
+    "Training's Report",
+    "Member's List",
+    "Testimonials Report",
+    "Member Points Report",
+    "Member Suggestions",
     "Chief Guest List",
     "Locations"
   ];
